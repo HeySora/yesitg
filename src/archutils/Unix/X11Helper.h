@@ -22,6 +22,7 @@ namespace X11Helper
 	// Get the current open window. Initialized by the first call to
 	// MakeWindow().
 	extern Window Win;
+    extern Window Win2;
 
 	// (Re)create the window on the screen of this number with this depth,
 	// this visual type, this width (optional -- you can resize the window

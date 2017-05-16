@@ -146,17 +146,28 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 		{
 			return "Failed to create the window.";
 		}
+        if( !X11Helper::MakeWindow(xvi->screen, xvi->depth, xvi->visual, p.width, p.height, !p.windowed) )
+        {
+            return "you suck.";
+        }
+
 		m_bWindowIsOpen = true;
 
 		char *szWindowTitle = const_cast<char *>( p.sWindowTitle.c_str() );
 		XChangeProperty( g_X11Display, X11Helper::Win, XA_WM_NAME, XA_STRING, 8, PropModeReplace,
 				reinterpret_cast<unsigned char*>(szWindowTitle), strlen(szWindowTitle) );
 
+		XChangeProperty( g_X11Display, X11Helper::Win2, XA_WM_NAME, XA_STRING, 8, PropModeReplace,
+				reinterpret_cast<unsigned char*>(szWindowTitle), strlen(szWindowTitle) );
+
 		GLXContext ctxt = glXCreateContext(X11Helper::Dpy, xvi, NULL, True);
+		GLXContext ctxt2 = glXCreateContext(X11Helper::Dpy, xvi, NULL, True);
 
 		glXMakeCurrent( X11Helper::Dpy, X11Helper::Win, ctxt );
+		glXMakeCurrent( X11Helper::Dpy, X11Helper::Win2, ctxt2 );
 
 		XMapWindow( X11Helper::Dpy, X11Helper::Win );
+		XMapWindow( X11Helper::Dpy, X11Helper::Win2 );
 
 		// HACK: Wait for the MapNotify event, without spinning and
 		// eating CPU unnecessarily, and without smothering other
@@ -206,13 +217,16 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 			
 			// Move the window to the corner that the screen focuses in on.
 			XMoveWindow( X11Helper::Dpy, X11Helper::Win, 0, 0 );
+			XMoveWindow( X11Helper::Dpy, X11Helper::Win2, 0, 0 );
 			
 			XRaiseWindow( X11Helper::Dpy, X11Helper::Win );
+			XRaiseWindow( X11Helper::Dpy, X11Helper::Win2 );
 
 			if( m_bWasWindowed )
 	                {
         	                // We want to prevent the WM from catching anything that comes from the keyboard.
         	                XGrabKeyboard( X11Helper::Dpy, X11Helper::Win, True, GrabModeAsync, GrabModeAsync, CurrentTime );
+        	                XGrabKeyboard( X11Helper::Dpy, X11Helper::Win2, True, GrabModeAsync, GrabModeAsync, CurrentTime );
         	        }
        	                m_bWasWindowed = false;
 		}
@@ -239,11 +253,13 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 
 	// Do this before resizing the window so that pane-style WMs (Ion,
 	// ratpoison) don't resize us back inappropriately.
-	XSetWMNormalHints( X11Helper::Dpy, X11Helper::Win, &hints );
+	//XSetWMNormalHints( X11Helper::Dpy, X11Helper::Win, &hints );
+	XSetWMNormalHints( X11Helper::Dpy, X11Helper::Win2, &hints );
 
 	// Do this even if we just created the window -- works around Ion2 not
 	// catching WM normal hints changes in mapped windows.
-	XResizeWindow( X11Helper::Dpy, X11Helper::Win, p.width, p.height );
+	XResizeWindow( X11Helper::Dpy, X11Helper::Win, 160, 90 );
+	XResizeWindow( X11Helper::Dpy, X11Helper::Win2, p.width, p.height );
 
 	if (p.windowed)
 	{
@@ -253,6 +269,7 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 		int x = (w - p.width)/2;
 		int y = (h - p.height)/2;
 		XMoveWindow( X11Helper::Dpy, X11Helper::Win, x, y );
+		XMoveWindow( X11Helper::Dpy, X11Helper::Win2, x+30, y+30 );
 	}
 
 	CurrentParams = p;
@@ -263,6 +280,7 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 
 void LowLevelWindow_X11::SwapBuffers()
 {
+	glXSwapBuffers( X11Helper::Dpy, X11Helper::Win2 );
 	glXSwapBuffers( X11Helper::Dpy, X11Helper::Win );
 }
 

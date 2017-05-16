@@ -18,6 +18,7 @@ static bool g_bHaveWin = false;
 
 Display *X11Helper::Dpy = NULL;
 Window X11Helper::Win;
+Window X11Helper::Win2;
 
 int protoErrorCallback( Display*, XErrorEvent* );
 int protoFatalCallback( Display* );
@@ -93,11 +94,13 @@ bool X11Helper::MakeWindow( int screenNum, int depth, Visual *visual, int width,
 	if( g_iRefCount == 0 )
 		return false;
 
+    /*
 	if( g_bHaveWin )
 	{
 		XDestroyWindow( Dpy, Win );
 		g_bHaveWin = false;
 	}
+    */
 		// pHaveWin will stay false if an error occurs once I do error
 		// checking here...
 
@@ -120,8 +123,16 @@ bool X11Helper::MakeWindow( int screenNum, int depth, Visual *visual, int width,
 	unsigned long mask = CWBorderPixel | CWColormap | CWEventMask;
 	if ( bOverrideRedirect ) mask |= CWOverrideRedirect;
 
-	Win = XCreateWindow( Dpy, RootWindow(Dpy, screenNum), 0, 0, width, 
-		height, 0, depth, InputOutput, visual, mask, &winAttribs );
+    if ( !g_bHaveWin )
+    {
+	    Win = XCreateWindow( Dpy, RootWindow(Dpy, screenNum), 0, 0, width, 
+		    height, 0, depth, InputOutput, visual, mask, &winAttribs );
+    }
+    else
+    {
+	    Win2 = XCreateWindow( Dpy, RootWindow(Dpy, screenNum), 0, 0, width, 
+		    height, 0, depth, InputOutput, visual, mask, &winAttribs );
+    }        
 
 	g_bHaveWin = true;
 
