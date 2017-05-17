@@ -10,6 +10,8 @@
 #include <GL/gl.h>
 #include <GL/glu.h>
 
+#include <X11/Xlib.h> // Window
+
 #include <vector> // std::vector
 
 struct XScreenSaverData
