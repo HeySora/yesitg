@@ -12,6 +12,8 @@
 #include <X11/extensions/Xrandr.h>
 #include <X11/extensions/dpms.h>
 
+#include <vector>  // std::vector
+
 // XXX HACK: RageDisplay_OGL is expecting us to set this for it so it can do
 // GLX-specific queries and whatnot. It's one ugly hackish mess, but hey,
 // LLW_SDL is in on it, and I'm feeling lazy.
@@ -19,6 +21,8 @@ extern Display *g_X11Display;
 XRRScreenConfiguration *g_pScreenConfig = NULL;
 static int g_iOldSize;
 static Rotation g_OldRotation;
+
+static std::vector<GLXContext> Ctxs;
 
 LowLevelWindow_X11::LowLevelWindow_X11()
 {
@@ -166,6 +170,9 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 			GLXContext ctxt = glXCreateContext(X11Helper::Dpy, xvi, NULL, True);
 
 			glXMakeCurrent( X11Helper::Dpy, X11Helper::Wins[i], ctxt );
+
+			// Store contexts for a later use. ~Sora
+			Ctxs[i] = ctxt;
 
 			XMapWindow( X11Helper::Dpy, X11Helper::Wins[i] );
 		}

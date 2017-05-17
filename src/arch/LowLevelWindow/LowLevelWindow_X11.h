@@ -10,6 +10,8 @@
 #include <GL/gl.h>
 #include <GL/glu.h>
 
+#include <vector> // std::vector
+
 struct XScreenSaverData
 {
 	int timeout, interval;
@@ -24,6 +26,7 @@ struct DPMSTimeouts
 class LowLevelWindow_X11 : public LowLevelWindow
 {
 public:
+	static std::vector<GLXContext> Ctxs;
 	LowLevelWindow_X11();
 	~LowLevelWindow_X11();
 
