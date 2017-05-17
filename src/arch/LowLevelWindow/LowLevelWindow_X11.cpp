@@ -154,7 +154,10 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 
 		m_bWindowIsOpen = true;
 
-		for (unsigned int i = 0; i < X11Helper::Wins.size(); i++)
+		// Reversed for loop to mark the first window as the main Window
+		// (because the first window will be the last to be called there) ~Sora
+		for (int i = X11Helper::Wins.size() - 1; i >= 0; i--)
+		//for (unsigned int i = 0; i < X11Helper::Wins.size(); i++)
 		{
 			char *szWindowTitle = const_cast<char *>( p.sWindowTitle.c_str() );
 			XChangeProperty( g_X11Display, X11Helper::Wins[i], XA_WM_NAME, XA_STRING, 8, PropModeReplace,
