@@ -8,6 +8,7 @@
 #include "RageThreads.h"
 
 #include <vector>           // std::vector
+#include <typeinfo>         // typeid
 
 // Currently open masks:
 static vector<long> g_aiMasks;
@@ -82,12 +83,32 @@ static bool pApplyMasks()
 	for( unsigned i = 0; i < g_aiMasks.size(); ++i )
 		iMask |= g_aiMasks[i];
 
-	for (int i = 0; i < X11Helper::Wins.size(); i++)
+	for (unsigned int i = 0; i < X11Helper::Wins.size(); i++)
 	{
 		if( XSelectInput(X11Helper::Dpy, X11Helper::Wins[i], iMask) == 0 )
 		return false;
 	}
 
+	return true;
+}
+
+bool X11Helper::DestroyWindow( unsigned int i )
+{
+	ASSERT( Wins.size() > i );
+	XDestroyWindow( Dpy, Wins[i] );
+	Wins.erase(Wins.begin() + i);
+	if (i == 0)
+	{
+		g_bHaveWin = false;
+	}
+	return true;
+}
+
+bool X11Helper::DestroyWindow( Window w )
+{
+	ASSERT( std::find(Wins.begin(),Wins.end(),w) != Wins.end() );
+	XDestroyWindow( Dpy, w );
+	Wins.erase(std::find(Wins.begin(),Wins.end(),w));
 	return true;
 }
 

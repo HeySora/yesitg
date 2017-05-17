@@ -20,9 +20,14 @@ namespace X11Helper
 	// Go().
 	extern Display *Dpy;
 
-	// Get the current open window. Initialized by the first call to
-	// MakeWindow().
+	// A vector containing active windows.
 	extern std::vector<Window> Wins;
+
+	// Destroy a specific window by its index.
+	bool DestroyWindow(unsigned int i);
+
+	// Destroy a specific window.
+	bool DestroyWindow(Window w);
 
 	// (Re)create the window on the screen of this number with this depth,
 	// this visual type, this width (optional -- you can resize the window
