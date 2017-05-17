@@ -137,7 +137,7 @@ bool X11Helper::MakeWindow( int screenNum, int depth, Visual *visual, int width,
 
 	/* Hide the mouse cursor. */
 	{
-		for (int i = 0; i < Wins.size(); i++)
+		for (unsigned int i = 0; i < Wins.size(); i++)
 		{
 			const char pBlank[] = { 0,0,0,0,0,0,0,0 };
 			Pixmap BlankBitmap = XCreateBitmapFromData( Dpy, Wins[i], pBlank, 8, 8 );
