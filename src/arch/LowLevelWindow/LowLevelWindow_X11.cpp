@@ -150,32 +150,21 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 		{
 			return "Failed to create the window.";
 		}
-		// Try to create a second window. ~Sora
-		if( !X11Helper::MakeWindow(xvi->screen, xvi->depth, xvi->visual, p.width, p.height, !p.windowed) )
-		{
-			return "Failed to create the second window.";
-		}
 
 		m_bWindowIsOpen = true;
 
-		// Reversed for loop to mark the first window as the main Window
-		// (because the first window will be the last to be called there) ~Sora
-		for (int i = X11Helper::Wins.size() - 1; i >= 0; i--)
-		//for (unsigned int i = 0; i < X11Helper::Wins.size(); i++)
-		{
-			char *szWindowTitle = const_cast<char *>( p.sWindowTitle.c_str() );
-			XChangeProperty( g_X11Display, X11Helper::Wins[i], XA_WM_NAME, XA_STRING, 8, PropModeReplace,
-					reinterpret_cast<unsigned char*>(szWindowTitle), strlen(szWindowTitle) );
+		char *szWindowTitle = const_cast<char *>( p.sWindowTitle.c_str() );
+		XChangeProperty( g_X11Display, X11Helper::Wins[0], XA_WM_NAME, XA_STRING, 8, PropModeReplace,
+				reinterpret_cast<unsigned char*>(szWindowTitle), strlen(szWindowTitle) );
 
-			GLXContext ctxt = glXCreateContext(X11Helper::Dpy, xvi, NULL, True);
+		GLXContext ctxt = glXCreateContext(X11Helper::Dpy, xvi, NULL, True);
 
-			glXMakeCurrent( X11Helper::Dpy, X11Helper::Wins[i], ctxt );
+		glXMakeCurrent( X11Helper::Dpy, X11Helper::Wins[0], ctxt );
 
-			// Store contexts for a later use. ~Sora
-			Ctxs.insert(Ctxs.begin(), ctxt);
+		// Store contexts for a later use. ~Sora
+		Ctxs.push_back(ctxt);
 
-			XMapWindow( X11Helper::Dpy, X11Helper::Wins[i] );
-		}
+		XMapWindow( X11Helper::Dpy, X11Helper::Wins[0] );
 		
 
 		// HACK: Wait for the MapNotify event, without spinning and
@@ -225,17 +214,14 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 			XRRSetScreenConfig( X11Helper::Dpy, g_pScreenConfig, RootWindow(X11Helper::Dpy, DefaultScreen(X11Helper::Dpy)), iSizeMatch, 1, CurrentTime );
 			
 			// Move the window to the corner that the screen focuses in on.
-			for (unsigned int i = 0; i < X11Helper::Wins.size(); i++)
-			{
-				XMoveWindow( X11Helper::Dpy, X11Helper::Wins[i], 0, 0 );
-				
-				XRaiseWindow( X11Helper::Dpy, X11Helper::Wins[i] );
+			XMoveWindow( X11Helper::Dpy, X11Helper::Wins[0], 0, 0 );
+			
+			XRaiseWindow( X11Helper::Dpy, X11Helper::Wins[0] );
 
-				if( m_bWasWindowed )
-				{
-					// We want to prevent the WM from catching anything that comes from the keyboard.
-					XGrabKeyboard( X11Helper::Dpy, X11Helper::Wins[i], True, GrabModeAsync, GrabModeAsync, CurrentTime );
-				}
+			if( m_bWasWindowed )
+			{
+				// We want to prevent the WM from catching anything that comes from the keyboard.
+				XGrabKeyboard( X11Helper::Dpy, X11Helper::Wins[0], True, GrabModeAsync, GrabModeAsync, CurrentTime );
 			}
 			
 			m_bWasWindowed = false;
@@ -261,31 +247,193 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 	}
 	//int rate = XRRConfigCurrentRate( g_pScreenConfig );
 
-	for (unsigned int i = 0; i < X11Helper::Wins.size(); i++)
+	// Do this before resizing the window so that pane-style WMs (Ion,
+	// ratpoison) don't resize us back inappropriately.
+	XSetWMNormalHints( X11Helper::Dpy, X11Helper::Wins[0], &hints );
+
+	// Do this even if we just created the window -- works around Ion2 not
+	// catching WM normal hints changes in mapped windows.
+	XResizeWindow( X11Helper::Dpy, X11Helper::Wins[0], p.width, p.height );
+
+	if (p.windowed)
 	{
-		// Do this before resizing the window so that pane-style WMs (Ion,
-		// ratpoison) don't resize us back inappropriately.
-		XSetWMNormalHints( X11Helper::Dpy, X11Helper::Wins[i], &hints );
-
-		// Do this even if we just created the window -- works around Ion2 not
-		// catching WM normal hints changes in mapped windows.
-		XResizeWindow( X11Helper::Dpy, X11Helper::Wins[i], p.width, p.height );
-
-		if (p.windowed)
-		{
-			// Center the window in the display.
-			int w = DisplayWidth( X11Helper::Dpy, DefaultScreen(X11Helper::Dpy) );
-			int h = DisplayHeight( X11Helper::Dpy, DefaultScreen(X11Helper::Dpy) );
-			int x = (w - p.width)/2;
-			int y = (h - p.height)/2;
-			XMoveWindow( X11Helper::Dpy, X11Helper::Wins[i], x+64*i, y+64*i );
-		}
+		// Center the window in the display.
+		int w = DisplayWidth( X11Helper::Dpy, DefaultScreen(X11Helper::Dpy) );
+		int h = DisplayHeight( X11Helper::Dpy, DefaultScreen(X11Helper::Dpy) );
+		int x = (w - p.width)/2;
+		int y = (h - p.height)/2;
+		XMoveWindow( X11Helper::Dpy, X11Helper::Wins[0], x, y );
 	}
 
 	CurrentParams = p;
 	//CurrentParams.rate = rate;
 
 	return ""; // Success
+}
+
+Window LowLevelWindow_X11::CreateAdditionalWindow()
+{
+	RageDisplay::VideoModeParams p = DISPLAY->GetVideoModeParams();
+
+	XSizeHints hints;
+	XEvent ev;
+	stack<XEvent> otherEvs;
+
+	// XXX: LLW_SDL allows the window to be resized. Do we really want to?
+	hints.flags = PMinSize | PMaxSize | PBaseSize;
+	hints.min_width = hints.max_width = hints.base_width = p.width;
+	hints.min_height = hints.max_height = hints.base_height = p.height;
+
+	int visAttribs[32];
+	int i = 0;
+	ASSERT( p.bpp == 16 || p.bpp == 32 );
+	if( p.bpp == 32 )
+	{
+		visAttribs[i++] = GLX_RED_SIZE;		visAttribs[i++] = 8;
+		visAttribs[i++] = GLX_GREEN_SIZE;	visAttribs[i++] = 8;
+		visAttribs[i++] = GLX_BLUE_SIZE;	visAttribs[i++] = 8;
+	}
+	else
+	{
+		visAttribs[i++] = GLX_RED_SIZE;		visAttribs[i++] = 5;
+		visAttribs[i++] = GLX_GREEN_SIZE;	visAttribs[i++] = 6;
+		visAttribs[i++] = GLX_BLUE_SIZE;	visAttribs[i++] = 5;
+	}
+
+	visAttribs[i++] = GLX_DEPTH_SIZE;	visAttribs[i++] = 16;
+	visAttribs[i++] = GLX_RGBA;
+	visAttribs[i++] = GLX_DOUBLEBUFFER;
+
+	visAttribs[i++] = None;
+
+	XVisualInfo *xvi = glXChooseVisual( X11Helper::Dpy, DefaultScreen(X11Helper::Dpy), visAttribs );
+
+	if( xvi == NULL )
+	{
+		LOG->Trace("No visual available for that depth.");
+		ASSERT(0);
+	}
+
+	/* Enable StructureNotifyMask, so we receive a MapNotify for the following XMapWindow. */
+	X11Helper::OpenMask( StructureNotifyMask );
+
+	if( !X11Helper::MakeWindow(xvi->screen, xvi->depth, xvi->visual, p.width, p.height, !p.windowed) )
+	{
+		LOG->Trace("Failed to create the window.");
+		ASSERT(0);
+	}
+
+	Window window = X11Helper::Wins.back();
+
+	char *szWindowTitle = const_cast<char *>( p.sWindowTitle.c_str() );
+	XChangeProperty( g_X11Display, window, XA_WM_NAME, XA_STRING, 8, PropModeReplace,
+			reinterpret_cast<unsigned char*>(szWindowTitle), strlen(szWindowTitle) );
+
+	GLXContext ctxt = glXCreateContext(X11Helper::Dpy, xvi, NULL, True);
+
+	glXMakeCurrent( X11Helper::Dpy, window, ctxt );
+
+	// Store contexts for a later use. ~Sora
+	Ctxs.insert(Ctxs.begin(), ctxt);
+
+	XMapWindow( X11Helper::Dpy, window );
+	
+
+	// HACK: Wait for the MapNotify event, without spinning and
+	// eating CPU unnecessarily, and without smothering other
+	// events. Do this by grabbing all events, remembering
+	// uninteresting events, and putting them back on the queue
+	// after MapNotify arrives.
+	while(true)
+	{
+		XNextEvent(X11Helper::Dpy, &ev);
+		if( ev.type == MapNotify )
+			break;
+
+		otherEvs.push(ev);
+	}
+
+	while( !otherEvs.empty() )
+	{
+		XPutBackEvent( X11Helper::Dpy, &otherEvs.top() );
+		otherEvs.pop();
+	}
+
+	X11Helper::CloseMask( StructureNotifyMask );
+
+	g_iOldSize = XRRConfigCurrentConfiguration( g_pScreenConfig, &g_OldRotation );
+
+	if (!p.windowed)
+	{
+		int iSizesXct;
+		XRRScreenSize *pSizesX = XRRSizes( X11Helper::Dpy, DefaultScreen(X11Helper::Dpy), &iSizesXct );
+		ASSERT_M( iSizesXct != 0, "Couldn't get resolution list from X server" );
+	
+		int iSizeMatch = -1;
+		
+		for( int i = 0; i < iSizesXct; ++i )
+		{
+			if( pSizesX[i].width == p.width && pSizesX[i].height == p.height )
+			{
+				CHECKPOINT_M( ssprintf("%dx%d", pSizesX[i].width, pSizesX[i].height) );
+				iSizeMatch = i;
+				break;
+			}
+		}
+
+		// Set this mode.
+		// XXX: This doesn't handle if the config has changed since we queried it (see man Xrandr)
+		XRRSetScreenConfig( X11Helper::Dpy, g_pScreenConfig, RootWindow(X11Helper::Dpy, DefaultScreen(X11Helper::Dpy)), iSizeMatch, 1, CurrentTime );
+		
+		// Move the window to the corner that the screen focuses in on.
+		XMoveWindow( X11Helper::Dpy, window, 0, 0 );
+		
+		XRaiseWindow( X11Helper::Dpy, window );
+
+		if( m_bWasWindowed )
+		{
+			// We want to prevent the WM from catching anything that comes from the keyboard.
+			XGrabKeyboard( X11Helper::Dpy, window, True, GrabModeAsync, GrabModeAsync, CurrentTime );
+		}
+		
+		m_bWasWindowed = false;
+	}
+	else
+	{
+		if( !m_bWasWindowed )
+		{
+				XRRSetScreenConfig( X11Helper::Dpy, g_pScreenConfig, RootWindow(X11Helper::Dpy, DefaultScreen(X11Helper::Dpy)), g_iOldSize, g_OldRotation, CurrentTime );
+				// In windowed mode, we actually want the WM to function normally.
+				// Release any previous grab.
+				XUngrabKeyboard( X11Helper::Dpy, CurrentTime );
+		}
+		m_bWasWindowed = true;
+	}
+	//int rate = XRRConfigCurrentRate( g_pScreenConfig );
+
+	// Do this before resizing the window so that pane-style WMs (Ion,
+	// ratpoison) don't resize us back inappropriately.
+	XSetWMNormalHints( X11Helper::Dpy, window, &hints );
+
+	// Do this even if we just created the window -- works around Ion2 not
+	// catching WM normal hints changes in mapped windows.
+	XResizeWindow( X11Helper::Dpy, window, p.width, p.height );
+
+	if (p.windowed)
+	{
+		// Center the window in the display.
+		int w = DisplayWidth( X11Helper::Dpy, DefaultScreen(X11Helper::Dpy) );
+		int h = DisplayHeight( X11Helper::Dpy, DefaultScreen(X11Helper::Dpy) );
+		int x = (w - p.width)/2;
+		int y = (h - p.height)/2;
+		XMoveWindow( X11Helper::Dpy, window, x, y );
+	}
+
+	CurrentParams = p;
+	//CurrentParams.rate = rate;
+
+	return window;
+	
 }
 
 void LowLevelWindow_X11::SwapBuffers()

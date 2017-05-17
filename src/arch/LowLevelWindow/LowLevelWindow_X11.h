@@ -32,6 +32,9 @@ public:
 
 	void *GetProcAddress(CString s);
 	CString TryVideoMode(RageDisplay::VideoModeParams p, bool &bNewDeviceOut);
+
+	// Generate an additional window
+	Window CreateAdditionalWindow();
 	void SwapBuffers();
 
 	RageDisplay::VideoModeParams GetVideoModeParams() const { return CurrentParams; }

@@ -762,7 +762,7 @@ RageDisplay::VideoModeParams RageDisplay_OGL::GetVideoModeParams() const { retur
 
 static void SetupVertices( const RageSpriteVertex v[], int iNumVerts )
 {
-	static float *Vertex, *Texture, *Normal;	
+	static float *Vertex, *Texture, *Normal;
 	static GLubyte *Color;
 	static int Size = 0;
 	if(iNumVerts > Size)
