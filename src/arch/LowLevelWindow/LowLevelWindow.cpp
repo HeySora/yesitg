@@ -2,9 +2,13 @@
 #include "LowLevelWindow.h"
 #include "arch/arch_default.h"
 
+LowLevelWindow *LowLevelWindow::instance;
+
 LowLevelWindow *LowLevelWindow::Create()
 {
-	return new ARCH_LOW_LEVEL_WINDOW;
+	if (instance == NULL)
+		instance = new ARCH_LOW_LEVEL_WINDOW;
+	return instance;
 }
 
 /*

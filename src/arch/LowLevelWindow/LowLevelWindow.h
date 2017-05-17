@@ -12,6 +12,7 @@ class LowLevelWindow
 {
 public:
 	static LowLevelWindow *Create();
+	static LowLevelWindow *instance;
 
 	virtual ~LowLevelWindow() { }
 
