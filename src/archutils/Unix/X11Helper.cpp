@@ -7,6 +7,8 @@
 #include "RageDisplay.h"
 #include "RageThreads.h"
 
+#include <vector>           // std::vector
+
 // Currently open masks:
 static vector<long> g_aiMasks;
 
@@ -17,8 +19,7 @@ static int g_iRefCount = 0;
 static bool g_bHaveWin = false;
 
 Display *X11Helper::Dpy = NULL;
-Window X11Helper::Win;
-Window X11Helper::Win2;
+std::vector<Window> X11Helper::Wins;
 
 int protoErrorCallback( Display*, XErrorEvent* );
 int protoFatalCallback( Display* );
@@ -81,8 +82,11 @@ static bool pApplyMasks()
 	for( unsigned i = 0; i < g_aiMasks.size(); ++i )
 		iMask |= g_aiMasks[i];
 
-	if( XSelectInput(X11Helper::Dpy, X11Helper::Win, iMask) == 0 )
+	for (int i = 0; i < X11Helper::Wins.size(); i++)
+	{
+		if( XSelectInput(X11Helper::Dpy, X11Helper::Wins[i], iMask) == 0 )
 		return false;
+	}
 
 	return true;
 }
@@ -94,15 +98,14 @@ bool X11Helper::MakeWindow( int screenNum, int depth, Visual *visual, int width,
 	if( g_iRefCount == 0 )
 		return false;
 
-    /*
+	// Behaviour disabled to allow multiple Windows to be drawn. ~Sora
+	/*
 	if( g_bHaveWin )
 	{
 		XDestroyWindow( Dpy, Win );
 		g_bHaveWin = false;
 	}
-    */
-		// pHaveWin will stay false if an error occurs once I do error
-		// checking here...
+	*/
 
 	XSetWindowAttributes winAttribs;
 
@@ -123,30 +126,29 @@ bool X11Helper::MakeWindow( int screenNum, int depth, Visual *visual, int width,
 	unsigned long mask = CWBorderPixel | CWColormap | CWEventMask;
 	if ( bOverrideRedirect ) mask |= CWOverrideRedirect;
 
-    if ( !g_bHaveWin )
-    {
-	    Win = XCreateWindow( Dpy, RootWindow(Dpy, screenNum), 0, 0, width, 
-		    height, 0, depth, InputOutput, visual, mask, &winAttribs );
-    }
-    else
-    {
-	    Win2 = XCreateWindow( Dpy, RootWindow(Dpy, screenNum), 0, 0, width, 
-		    height, 0, depth, InputOutput, visual, mask, &winAttribs );
-    }        
+	// Add the window to the vector ~Sora
+	Wins.push_back(XCreateWindow( Dpy, RootWindow(Dpy, screenNum), 0, 0, width, 
+			height, 0, depth, InputOutput, visual, mask, &winAttribs ));      
 
-	g_bHaveWin = true;
+	if (g_bHaveWin)
+		LOG->Trace("X11Helper: Creating an additional Window !");
+	else
+		g_bHaveWin = true;
 
 	/* Hide the mouse cursor. */
 	{
-		const char pBlank[] = { 0,0,0,0,0,0,0,0 };
-		Pixmap BlankBitmap = XCreateBitmapFromData( Dpy, Win, pBlank, 8, 8 );
+		for (int i = 0; i < Wins.size(); i++)
+		{
+			const char pBlank[] = { 0,0,0,0,0,0,0,0 };
+			Pixmap BlankBitmap = XCreateBitmapFromData( Dpy, Wins[i], pBlank, 8, 8 );
 
-		XColor black = { 0, 0, 0, 0, 0, 0 };
-		Cursor pBlankPointer = XCreatePixmapCursor( Dpy, BlankBitmap, BlankBitmap, &black, &black, 0, 0 );
-		XFreePixmap( Dpy, BlankBitmap );
+			XColor black = { 0, 0, 0, 0, 0, 0 };
+			Cursor pBlankPointer = XCreatePixmapCursor( Dpy, BlankBitmap, BlankBitmap, &black, &black, 0, 0 );
+			XFreePixmap( Dpy, BlankBitmap );
 
-		XDefineCursor( Dpy, Win, pBlankPointer );
-		XFreeCursor( Dpy, pBlankPointer );
+			XDefineCursor( Dpy, Wins[i], pBlankPointer );
+			XFreeCursor( Dpy, pBlankPointer );
+		}
 	}
 
 	return true;

@@ -146,28 +146,27 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 		{
 			return "Failed to create the window.";
 		}
-        if( !X11Helper::MakeWindow(xvi->screen, xvi->depth, xvi->visual, p.width, p.height, !p.windowed) )
-        {
-            return "you suck.";
-        }
+		// Try to create a second window. ~Sora
+		if( !X11Helper::MakeWindow(xvi->screen, xvi->depth, xvi->visual, p.width, p.height, !p.windowed) )
+		{
+			return "Failed to create the second window.";
+		}
 
 		m_bWindowIsOpen = true;
 
-		char *szWindowTitle = const_cast<char *>( p.sWindowTitle.c_str() );
-		XChangeProperty( g_X11Display, X11Helper::Win, XA_WM_NAME, XA_STRING, 8, PropModeReplace,
-				reinterpret_cast<unsigned char*>(szWindowTitle), strlen(szWindowTitle) );
+		for (unsigned int i = 0; i < X11Helper::Wins.size(); i++)
+		{
+			char *szWindowTitle = const_cast<char *>( p.sWindowTitle.c_str() );
+			XChangeProperty( g_X11Display, X11Helper::Wins[i], XA_WM_NAME, XA_STRING, 8, PropModeReplace,
+					reinterpret_cast<unsigned char*>(szWindowTitle), strlen(szWindowTitle) );
 
-		XChangeProperty( g_X11Display, X11Helper::Win2, XA_WM_NAME, XA_STRING, 8, PropModeReplace,
-				reinterpret_cast<unsigned char*>(szWindowTitle), strlen(szWindowTitle) );
+			GLXContext ctxt = glXCreateContext(X11Helper::Dpy, xvi, NULL, True);
 
-		GLXContext ctxt = glXCreateContext(X11Helper::Dpy, xvi, NULL, True);
-		GLXContext ctxt2 = glXCreateContext(X11Helper::Dpy, xvi, NULL, True);
+			glXMakeCurrent( X11Helper::Dpy, X11Helper::Wins[i], ctxt );
 
-		glXMakeCurrent( X11Helper::Dpy, X11Helper::Win, ctxt );
-		glXMakeCurrent( X11Helper::Dpy, X11Helper::Win2, ctxt2 );
-
-		XMapWindow( X11Helper::Dpy, X11Helper::Win );
-		XMapWindow( X11Helper::Dpy, X11Helper::Win2 );
+			XMapWindow( X11Helper::Dpy, X11Helper::Wins[i] );
+		}
+		
 
 		// HACK: Wait for the MapNotify event, without spinning and
 		// eating CPU unnecessarily, and without smothering other
@@ -216,31 +215,32 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 			XRRSetScreenConfig( X11Helper::Dpy, g_pScreenConfig, RootWindow(X11Helper::Dpy, DefaultScreen(X11Helper::Dpy)), iSizeMatch, 1, CurrentTime );
 			
 			// Move the window to the corner that the screen focuses in on.
-			XMoveWindow( X11Helper::Dpy, X11Helper::Win, 0, 0 );
-			XMoveWindow( X11Helper::Dpy, X11Helper::Win2, 0, 0 );
-			
-			XRaiseWindow( X11Helper::Dpy, X11Helper::Win );
-			XRaiseWindow( X11Helper::Dpy, X11Helper::Win2 );
+			for (unsigned int i = 0; i < X11Helper::Wins.size(); i++)
+			{
+				XMoveWindow( X11Helper::Dpy, X11Helper::Wins[i], 0, 0 );
+				
+				XRaiseWindow( X11Helper::Dpy, X11Helper::Wins[i] );
 
-			if( m_bWasWindowed )
-	                {
-        	                // We want to prevent the WM from catching anything that comes from the keyboard.
-        	                XGrabKeyboard( X11Helper::Dpy, X11Helper::Win, True, GrabModeAsync, GrabModeAsync, CurrentTime );
-        	                XGrabKeyboard( X11Helper::Dpy, X11Helper::Win2, True, GrabModeAsync, GrabModeAsync, CurrentTime );
-        	        }
-       	                m_bWasWindowed = false;
+				if( m_bWasWindowed )
+				{
+					// We want to prevent the WM from catching anything that comes from the keyboard.
+					XGrabKeyboard( X11Helper::Dpy, X11Helper::Wins[i], True, GrabModeAsync, GrabModeAsync, CurrentTime );
+				}
+			}
+			
+			m_bWasWindowed = false;
 		}
 		else
-	        {
-	                if( !m_bWasWindowed )
-	                {
-	                        XRRSetScreenConfig( X11Helper::Dpy, g_pScreenConfig, RootWindow(X11Helper::Dpy, DefaultScreen(X11Helper::Dpy)), g_iOldSize, g_OldRotation, CurrentTime );
-	                        // In windowed mode, we actually want the WM to function normally.
-	                        // Release any previous grab.
-	                        XUngrabKeyboard( X11Helper::Dpy, CurrentTime );
-	                }
-                        m_bWasWindowed = true;
-	        }
+		{
+			if( !m_bWasWindowed )
+			{
+					XRRSetScreenConfig( X11Helper::Dpy, g_pScreenConfig, RootWindow(X11Helper::Dpy, DefaultScreen(X11Helper::Dpy)), g_iOldSize, g_OldRotation, CurrentTime );
+					// In windowed mode, we actually want the WM to function normally.
+					// Release any previous grab.
+					XUngrabKeyboard( X11Helper::Dpy, CurrentTime );
+			}
+			m_bWasWindowed = true;
+		}
 	}
 	else
 	{
@@ -251,25 +251,25 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 	}
 	//int rate = XRRConfigCurrentRate( g_pScreenConfig );
 
-	// Do this before resizing the window so that pane-style WMs (Ion,
-	// ratpoison) don't resize us back inappropriately.
-	//XSetWMNormalHints( X11Helper::Dpy, X11Helper::Win, &hints );
-	XSetWMNormalHints( X11Helper::Dpy, X11Helper::Win2, &hints );
-
-	// Do this even if we just created the window -- works around Ion2 not
-	// catching WM normal hints changes in mapped windows.
-	XResizeWindow( X11Helper::Dpy, X11Helper::Win, 160, 90 );
-	XResizeWindow( X11Helper::Dpy, X11Helper::Win2, p.width, p.height );
-
-	if (p.windowed)
+	for (unsigned int i = 0; i < X11Helper::Wins.size(); i++)
 	{
-		// Center the window in the display.
-		int w = DisplayWidth( X11Helper::Dpy, DefaultScreen(X11Helper::Dpy) );
-		int h = DisplayHeight( X11Helper::Dpy, DefaultScreen(X11Helper::Dpy) );
-		int x = (w - p.width)/2;
-		int y = (h - p.height)/2;
-		XMoveWindow( X11Helper::Dpy, X11Helper::Win, x, y );
-		XMoveWindow( X11Helper::Dpy, X11Helper::Win2, x+30, y+30 );
+		// Do this before resizing the window so that pane-style WMs (Ion,
+		// ratpoison) don't resize us back inappropriately.
+		XSetWMNormalHints( X11Helper::Dpy, X11Helper::Wins[i], &hints );
+
+		// Do this even if we just created the window -- works around Ion2 not
+		// catching WM normal hints changes in mapped windows.
+		XResizeWindow( X11Helper::Dpy, X11Helper::Wins[i], p.width, p.height );
+
+		if (p.windowed)
+		{
+			// Center the window in the display.
+			int w = DisplayWidth( X11Helper::Dpy, DefaultScreen(X11Helper::Dpy) );
+			int h = DisplayHeight( X11Helper::Dpy, DefaultScreen(X11Helper::Dpy) );
+			int x = (w - p.width)/2;
+			int y = (h - p.height)/2;
+			XMoveWindow( X11Helper::Dpy, X11Helper::Wins[i], x+64*i, y+64*i );
+		}
 	}
 
 	CurrentParams = p;
@@ -280,8 +280,10 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 
 void LowLevelWindow_X11::SwapBuffers()
 {
-	glXSwapBuffers( X11Helper::Dpy, X11Helper::Win2 );
-	glXSwapBuffers( X11Helper::Dpy, X11Helper::Win );
+	for (unsigned int i = 0; i < X11Helper::Wins.size(); i++)
+	{
+		glXSwapBuffers( X11Helper::Dpy, X11Helper::Wins[i] );
+	}
 }
 
 /*

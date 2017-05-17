@@ -151,28 +151,32 @@ void InputHandler_X11::Update(float fDeltaTime)
 {
 	XEvent event;
 
-	if (X11Helper::Win)
-		while(XCheckTypedWindowEvent(X11Helper::Dpy,
-					X11Helper::Win, KeyPress, &event) )
-		{
-//			LOG->Trace("key: sym %i, key %i, state true",
-//				XLookupKeysym(&event.xkey,0), XSymToKeySym(XLookupKeysym(&event.xkey,0)));
+	for (unsigned int i = 0; i < X11Helper::Wins.size(); i++)
+	{
+		if (X11Helper::Wins[i])
+			while(XCheckTypedWindowEvent(X11Helper::Dpy,
+						X11Helper::Wins[i], KeyPress, &event) )
+			{
+//				LOG->Trace("key: sym %i, key %i, state true",
+//					XLookupKeysym(&event.xkey,0), XSymToKeySym(XLookupKeysym(&event.xkey,0)));
 
-			DeviceInput di( DEVICE_KEYBOARD,
-						XSymToKeySym(XLookupKeysym(&event.xkey,0)) );
-			ButtonPressed(di, true);
-		}
-		while(XCheckTypedWindowEvent(X11Helper::Dpy,
-					X11Helper::Win, KeyRelease, &event) )
-		{
-//			LOG->Trace("key: sym %i, key %i, state false",
-//				XLookupKeysym(&event.xkey,0), XSymToKeySym(XLookupKeysym(&event.xkey,0)));
+				DeviceInput di( DEVICE_KEYBOARD,
+							XSymToKeySym(XLookupKeysym(&event.xkey,0)) );
+				ButtonPressed(di, true);
+			}
+			while(XCheckTypedWindowEvent(X11Helper::Dpy,
+						X11Helper::Wins[i], KeyRelease, &event) )
+			{
+//				LOG->Trace("key: sym %i, key %i, state false",
+//					XLookupKeysym(&event.xkey,0), XSymToKeySym(XLookupKeysym(&event.xkey,0)));
 
-			DeviceInput di( DEVICE_KEYBOARD,
-						XSymToKeySym(XLookupKeysym(&event.xkey,0)) );
-			ButtonPressed(di, false);
+				DeviceInput di( DEVICE_KEYBOARD,
+							XSymToKeySym(XLookupKeysym(&event.xkey,0)) );
+				ButtonPressed(di, false);
 
-		}
+			}
+	}
+	
 
 	InputHandler::UpdateTimer();
 
