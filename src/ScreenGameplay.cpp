@@ -33,6 +33,11 @@
 #include "Course.h"
 #include "Inventory.h"
 
+namespace Blah
+{
+	#include "arch/LowLevelWindow/LowLevelWindow.h"
+}
+
 //
 // Defines
 //
@@ -92,6 +97,7 @@ ScreenGameplay::ScreenGameplay( CString sName ) : ScreenWithMenuElements(sName)
 
 void ScreenGameplay::Init()
 {
+	Blah::LowLevelWindow::Create()->CreateAdditionalWindow();
 	ScreenWithMenuElements::Init();
 
 	/* Pause MEMCARDMAN.  If a memory card is remove, we don't want to interrupt the

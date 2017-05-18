@@ -6,9 +6,19 @@ LowLevelWindow *LowLevelWindow::instance;
 
 LowLevelWindow *LowLevelWindow::Create()
 {
-	if (instance == NULL)
-		instance = new ARCH_LOW_LEVEL_WINDOW;
-	return instance;
+	if (LowLevelWindow::instance == NULL)
+	{
+		LowLevelWindow::instance = new ARCH_LOW_LEVEL_WINDOW;
+	}
+	return LowLevelWindow::instance;
+}
+
+namespace Blah
+{
+	LowLevelWindow *LowLevelWindow::Create()
+	{
+		return reinterpret_cast<LowLevelWindow*>(::LowLevelWindow::Create());
+	}
 }
 
 /*

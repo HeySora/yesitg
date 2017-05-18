@@ -8,6 +8,8 @@
 #include "global.h"
 #include "RageDisplay.h" // for RageDisplay::VideoModeParams
 
+#include "GL/glx.h"
+
 class LowLevelWindow
 {
 public:
@@ -17,6 +19,9 @@ public:
 	virtual ~LowLevelWindow() { }
 
 	virtual void *GetProcAddress(CString s) = 0;
+
+	// Generate an additional window
+	virtual Window CreateAdditionalWindow() = 0;
 
 	// Return "" if mode change was successful, otherwise an error message.
 	// bNewDeviceOut is set true if a new device was created and textures
@@ -28,6 +33,15 @@ public:
 
 	virtual RageDisplay::VideoModeParams GetVideoModeParams() const = 0;
 };
+
+namespace Blah
+{
+	class LowLevelWindow
+	{
+		public:
+			static LowLevelWindow *Create();
+	};
+}
 
 #endif
 
