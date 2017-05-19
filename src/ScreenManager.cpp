@@ -29,6 +29,10 @@
 
 ScreenManager*	SCREENMAN = NULL;	// global and accessable from anywhere in our program
 
+namespace H
+{
+	#include "archutils/Unix/X11Helper.h"
+}
 
 // Screen registration
 static map<CString,CreateScreenFn>	*g_pmapRegistrees = NULL;
@@ -213,21 +217,26 @@ void ScreenManager::Draw()
 	if( !DISPLAY->BeginFrame() )
 		return;
 
-	m_pSharedBGA->Draw();
-
-	if( !m_ScreenStack.empty() && !m_ScreenStack.back()->IsTransparent() )	// top screen isn't transparent
+	for (unsigned int i = 0; i < H::X11Helper::GetWins().size(); i++)
 	{
-		m_ScreenStack.back()->Draw();
-	}
-	else
-	{
-		for( unsigned i=0; i<m_ScreenStack.size(); i++ )	// Draw all screens bottom to top
-			m_ScreenStack[i]->Draw();
-	}
+		H::X11Helper::SetViewport(640*i, 0);
+		H::X11Helper::SetCurrentContext(i);
 
-	for( unsigned i=0; i<m_OverlayScreens.size(); i++ )
-		m_OverlayScreens[i]->Draw();
+		m_pSharedBGA->Draw();
 
+		if( !m_ScreenStack.empty() && !m_ScreenStack.back()->IsTransparent() )	// top screen isn't transparent
+		{
+			m_ScreenStack.back()->Draw();
+		}
+		else
+		{
+			for( unsigned i=0; i<m_ScreenStack.size(); i++ )	// Draw all screens bottom to top
+				m_ScreenStack[i]->Draw();
+		}
+
+		for( unsigned i=0; i<m_OverlayScreens.size(); i++ )
+			m_OverlayScreens[i]->Draw();
+	}
 
 	DISPLAY->EndFrame();
 }
