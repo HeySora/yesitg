@@ -6,6 +6,7 @@
 
 #include "RageDisplay.h"	// RageDisplay
 #include <vector>           // std::vector
+#include <GL/glx.h>         // GLXContext
 
 namespace X11Helper
 {
@@ -22,6 +23,9 @@ namespace X11Helper
 
 	// A vector containing active windows.
 	extern std::vector<Window> Wins;
+
+	// A vector containing active GLX contexts.
+	extern std::vector<GLXContext> Ctxs;
 
 	// Destroy a specific window by its index.
 	bool DestroyWindow(unsigned int i);

@@ -26,7 +26,6 @@ struct DPMSTimeouts
 class LowLevelWindow_X11 : public LowLevelWindow
 {
 public:
-	static std::vector<GLXContext> Ctxs;
 	LowLevelWindow_X11();
 	~LowLevelWindow_X11();
 

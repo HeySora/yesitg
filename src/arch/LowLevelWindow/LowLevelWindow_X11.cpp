@@ -22,8 +22,6 @@ XRRScreenConfiguration *g_pScreenConfig = NULL;
 static int g_iOldSize;
 static Rotation g_OldRotation;
 
-std::vector<GLXContext> LowLevelWindow_X11::Ctxs;
-
 LowLevelWindow_X11::LowLevelWindow_X11()
 {
 	m_bWindowIsOpen = false;
@@ -162,7 +160,7 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 		glXMakeCurrent( X11Helper::Dpy, X11Helper::Wins[0], ctxt );
 
 		// Store contexts for a later use. ~Sora
-		Ctxs.push_back(ctxt);
+		X11Helper::Ctxs.push_back(ctxt);
 
 		XMapWindow( X11Helper::Dpy, X11Helper::Wins[0] );
 		
@@ -334,7 +332,7 @@ Window LowLevelWindow_X11::CreateAdditionalWindow()
 	glXMakeCurrent( X11Helper::Dpy, window, ctxt );
 
 	// Store contexts for a later use. ~Sora
-	Ctxs.insert(Ctxs.begin(), ctxt);
+	X11Helper::Ctxs.insert(X11Helper::Ctxs.begin(), ctxt);
 
 	XMapWindow( X11Helper::Dpy, window );
 	

@@ -21,6 +21,7 @@ static bool g_bHaveWin = false;
 
 Display *X11Helper::Dpy = NULL;
 std::vector<Window> X11Helper::Wins;
+std::vector<GLXContext> X11Helper::Ctxs;
 
 int protoErrorCallback( Display*, XErrorEvent* );
 int protoFatalCallback( Display* );
