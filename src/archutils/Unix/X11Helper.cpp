@@ -98,6 +98,7 @@ bool X11Helper::DestroyWindow( unsigned int i )
 	ASSERT( Wins.size() > i );
 	XDestroyWindow( Dpy, Wins[i] );
 	Wins.erase(Wins.begin() + i);
+	Ctxs.erase(Ctxs.begin() + i);
 	if (i == 0)
 	{
 		g_bHaveWin = false;
@@ -110,6 +111,8 @@ bool X11Helper::DestroyWindow( Window w )
 	ASSERT( std::find(Wins.begin(),Wins.end(),w) != Wins.end() );
 	XDestroyWindow( Dpy, w );
 	Wins.erase(std::find(Wins.begin(),Wins.end(),w));
+	int dis = std::distance(Wins.begin(), std::find(Wins.begin(),Wins.end(),w));
+	Ctxs.erase(Ctxs.begin() + dis);
 	return true;
 }
 
