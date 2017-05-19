@@ -111,7 +111,7 @@ bool X11Helper::SetCurrentContext(unsigned int i)
 	return glXMakeCurrent( Dpy, Wins[i], Ctxs[i] );
 }
 
-bool X11Helper::DestroyWindow( unsigned int i )
+void X11Helper::DestroyWindow( unsigned int i )
 {
 	ASSERT( Wins.size() > i );
 	XDestroyWindow( Dpy, Wins[i] );
@@ -121,17 +121,15 @@ bool X11Helper::DestroyWindow( unsigned int i )
 	{
 		g_bHaveWin = false;
 	}
-	return true;
 }
 
-bool X11Helper::DestroyWindow( Window w )
+void X11Helper::DestroyWindow( Window w )
 {
 	ASSERT( std::find(Wins.begin(),Wins.end(),w) != Wins.end() );
 	XDestroyWindow( Dpy, w );
 	Wins.erase(std::find(Wins.begin(),Wins.end(),w));
 	int dis = std::distance(Wins.begin(), std::find(Wins.begin(),Wins.end(),w));
 	Ctxs.erase(Ctxs.begin() + dis);
-	return true;
 }
 
 bool X11Helper::MakeWindow( int screenNum, int depth, Visual *visual, int width, int height, bool bOverrideRedirect )
@@ -210,6 +208,60 @@ int protoErrorCallback( Display *d, XErrorEvent *err )
 int protoFatalCallback( Display *d )
 {
 	RageException::Throw( "Fatal I/O error communicating with X server." );
+}
+
+Display *X11Helper::GetDpy()
+{
+	return Dpy;
+}
+
+std::vector<Window> X11Helper::GetWins()
+{
+	return Wins;
+}
+
+std::vector<GLXContext> X11Helper::GetCtxs()
+{
+	return Ctxs;
+}
+
+
+namespace H
+{
+	Display *X11Helper::GetDpy()
+	{
+		return ::X11Helper::GetDpy();
+	}
+
+	std::vector<Window> X11Helper::GetWins()
+	{
+		return ::X11Helper::GetWins();
+	}
+
+	std::vector<GLXContext> X11Helper::GetCtxs()
+	{
+		return ::X11Helper::GetCtxs();
+	}
+
+	void X11Helper::SetViewport(int shift_left, int shift_right)
+	{
+		::X11Helper::SetViewport(shift_left, shift_right);
+	}
+
+	bool X11Helper::SetCurrentContext(unsigned int i)
+	{
+		return ::X11Helper::SetCurrentContext(i);
+	}
+
+	void X11Helper::DestroyWindow(unsigned int i)
+	{
+		::X11Helper::DestroyWindow(i);
+	}
+
+	void X11Helper::DestroyWindow(Window w)
+	{
+		::X11Helper::DestroyWindow(w);
+	}
 }
 
 /*
