@@ -27,6 +27,12 @@ namespace X11Helper
 	// A vector containing active GLX contexts.
 	extern std::vector<GLXContext> Ctxs;
 
+	// Set current GL Viewport
+	void SetViewport(int shift_left, int shift_down);
+
+	// Set current GLX Context
+	bool SetCurrentContext(unsigned int i);
+
 	// Destroy a specific window by its index.
 	bool DestroyWindow(unsigned int i);
 

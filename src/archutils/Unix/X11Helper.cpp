@@ -9,6 +9,7 @@
 
 #include <vector>           // std::vector
 #include <typeinfo>         // typeid
+#include "ScreenDimensions.h" // SCREEN_WIDTH, SCREEN_HEIGHT
 
 // Currently open masks:
 static vector<long> g_aiMasks;
@@ -91,6 +92,23 @@ static bool pApplyMasks()
 	}
 
 	return true;
+}
+
+// Stole from RageDisplay_OGL.cpp D: ~Sora
+void X11Helper::SetViewport(int shift_left, int shift_down)
+{
+	/* left and down are on a 0..SCREEN_WIDTH, 0..SCREEN_HEIGHT scale.
+	 * Scale them to the actual viewport range. */
+	shift_left = int( shift_left * float(DISPLAY->GetVideoModeParams().width) / SCREEN_WIDTH );
+	shift_down = int( shift_down * float(DISPLAY->GetVideoModeParams().height) / SCREEN_HEIGHT );
+
+	glViewport(shift_left, -shift_down, DISPLAY->GetVideoModeParams().width, DISPLAY->GetVideoModeParams().height);
+}
+
+bool X11Helper::SetCurrentContext(unsigned int i)
+{
+	ASSERT( Wins.size() > i && Ctxs.size() > i );
+	return glXMakeCurrent( Dpy, Wins[i], Ctxs[i] );
 }
 
 bool X11Helper::DestroyWindow( unsigned int i )
