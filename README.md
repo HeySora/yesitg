@@ -1,3 +1,18 @@
+# YesITG
+
+A custom version of OpenITG, for testing things, and developing some crazy features.
+
+Current TO-DO :
+* Window Class
+  * Ability to make multiple window work (Almost done, just a few graphic bugs)
+  * "Window" Lua Actor class
+* HTTP Lua Integration
+* Ability to do a screenshot from Lua
+
+Below is the original OpenITG README:
+
+---
+
 # OpenITG
 
 An open-source rhythm dancing game which is a fork of StepMania 3.95
