@@ -2,12 +2,17 @@
 
 A custom version of OpenITG, for testing things, and developing some crazy features.
 
-Current TO-DO :
+## Current TO-DO
+
 * Window Class
   * Ability to make multiple window work (Almost done, just a few graphic bugs)
   * "Window" Lua Actor class
 * HTTP Lua Integration
 * Ability to do a screenshot from Lua
+
+## Why YesITG ?
+
+yes
 
 Below is the original OpenITG README:
 
