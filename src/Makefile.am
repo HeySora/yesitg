@@ -402,7 +402,8 @@ AutoActor.cpp AutoActor.h \
 BitmapText.cpp BitmapText.h Model.cpp Model.h \
 ModelManager.cpp ModelManager.h ModelTypes.cpp ModelTypes.h \
 Quad.cpp Quad.h \
-RollingNumbers.cpp RollingNumbers.h Sprite.cpp Sprite.h
+RollingNumbers.cpp RollingNumbers.h Sprite.cpp Sprite.h \
+Window.cpp Window.h
 
 GlobalSingletons = \
 AnnouncerManager.cpp AnnouncerManager.h Bookkeeper.cpp Bookkeeper.h CryptManager.cpp CryptManager.h \
