@@ -1,14 +1,9 @@
 #include "global.h"
 #include "ScreenRanking.h"
-#include "ThemeManager.h"
 #include "SongManager.h"
 #include "GameState.h"
 #include "GameManager.h"
-#include "Course.h"
-#include "song.h"
-#include "Steps.h"
 #include "PrefsManager.h"
-#include "ActorUtil.h"
 #include "ProfileManager.h"
 #include "RageLog.h"
 #include "UnlockManager.h"
@@ -860,12 +855,9 @@ float ScreenRanking::SetPage( PageToShow pts )
 					{
 						HighScoreList &hsl = PROFILEMAN->GetMachineProfile()->GetStepsHighScoreList(pSong,pSteps);
 						HighScore hs = hsl.GetTopScore();
-						bool bRecentHighScore = false;
 						if( !hsl.vHighScores.empty() )
 						{
 							hs = hsl.GetTopScore();
-							const CString *psName = &hsl.GetTopScore().sName;
-							bRecentHighScore = find( GAMESTATE->m_vpsNamesThatWereFilled.begin(), GAMESTATE->m_vpsNamesThatWereFilled.end(), psName ) != GAMESTATE->m_vpsNamesThatWereFilled.end();
 						}
 						else
 						{
@@ -907,12 +899,9 @@ float ScreenRanking::SetPage( PageToShow pts )
 					const HighScoreList &hsl = PROFILEMAN->GetMachineProfile()->GetCourseHighScoreList( pCourse, pTrail );
 
 					HighScore hs;
-					bool bRecentHighScore = false;
 					if( !hsl.vHighScores.empty() )
 					{
 						hs = hsl.vHighScores[0];
-						const CString *psName = &hsl.GetTopScore().sName;
-						bRecentHighScore = find( GAMESTATE->m_vpsNamesThatWereFilled.begin(), GAMESTATE->m_vpsNamesThatWereFilled.end(), psName ) != GAMESTATE->m_vpsNamesThatWereFilled.end();
 					}
 					else
 					{

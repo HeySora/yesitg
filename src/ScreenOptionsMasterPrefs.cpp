@@ -5,17 +5,12 @@
 #include "AnnouncerManager.h"
 #include "NoteSkinManager.h"
 #include "PlayerOptions.h"
-#include "SongOptions.h"
 #include "RageDisplay.h"
-#include "RageUtil.h"
 #include "GameManager.h"
 #include "GameState.h"
-#include "InputMapper.h"
 #include "StepMania.h"
 #include "Game.h"
 #include "Foreach.h"
-#include "GameConstantsAndTypes.h"
-#include "RageLog.h"
 
 static void GetDefaultModifiers( PlayerOptions &po, SongOptions &so )
 {
@@ -192,12 +187,12 @@ static void Theme( int &sel, bool ToSel, const ConfOption *pConfOption )
 	{
 		sel = 0;
 		for( unsigned i=1; i<choices.size(); i++ )
-			if( !stricmp(choices[i], THEME->GetCurThemeName()) )
+			if( !stricmp(choices[i], PREFSMAN->m_sTheme.Get()) )
 				sel = i;
 	} else {
 		const CString sNewTheme = choices[sel];
 		if( THEME->GetCurThemeName() != sNewTheme )
-			THEME->SwitchThemeAndLanguage( sNewTheme, THEME->GetCurLanguage() );
+			PREFSMAN->m_sTheme.Set( sNewTheme ); // OPT_APPLY_THEME will load the theme
 	}
 }
 
@@ -320,25 +315,11 @@ static void CustomMaxSeconds( int &sel, bool ToSel, const ConfOption *pConfOptio
 	MoveMap( sel, PREFSMAN->m_iCustomMaxSeconds, ToSel, mapping, ARRAYLEN(mapping) );
 }
 
-static void CustomMaxSizeMB( int &sel, bool ToSel, const ConfOption *pConfOption )
-{
-	const int mapping[] = { 3, 4, 5, 6, 7, 8, 9, 10, 0 };
-	MoveMap( sel, PREFSMAN->m_iCustomMaxSizeMB, ToSel, mapping, ARRAYLEN(mapping) );
-}
-
 static void CustomsLoadTimeout( int &sel, bool ToSel, const ConfOption *pConfOption )
 {
 	const float mapping[] = { 5.0f, 10.0f, 15.0f, 20.0f, 25.0f, 30.0f, 45.0f, 60.0f };
 	MoveMap( sel, PREFSMAN->m_fCustomsLoadTimeout, ToSel, mapping, ARRAYLEN(mapping) );
 }
-
-static void CustomsLoadMax( int &sel, bool ToSel, const ConfOption *pConfOption )
-{
-	const int mapping[] = { 10, 20, 30, 40, 50, 60, 70, 0 };
-	MoveMap( sel, PREFSMAN->m_iCustomsLoadMax, ToSel, mapping, ARRAYLEN(mapping) );
-}
-
-MOVE( AllowExtraPlayerOptions,	PREFSMAN->m_bAllowExtraPlayerOptions );
 
 static void MarvelousTiming( int &sel, bool ToSel, const ConfOption *pConfOption )
 {
@@ -604,15 +585,10 @@ static void InitializeConfOptions()
 	ADD( ConfOption( "UnlockSystem",				UnlockSystem,		"OFF","ON" ) );
 	ADD( ConfOption( "SongEdits",					SongEdits,		"OFF", "ON" ) );
 	ADD( ConfOption( "CourseEdits",					CourseEdits,	"OFF", "ON" ) );
-	ADD( ConfOption( "AllowExtraPlayerOptions",			AllowExtraPlayerOptions,	"OFF", "ON" ) );
 	ADD( ConfOption( "CustomMaxSeconds",				CustomMaxSeconds,	"1:30", "1:45", "2:00", "2:15", "2:30", "2:45", "3:00",
 													"3:30", "4:00", "4:30", "5:00", "5:30",
 													"6:00", "7:00", "10:00", "UNLIMITED" ) );
-	ADD( ConfOption( "CustomMaxSizeMB",				CustomMaxSizeMB,	"3MB", "4MB", "5MB", "6MB", "7MB", "8MB", "9MB", "10MB", "UNLIMITED" ) );
-
 	ADD( ConfOption( "CustomsLoadTimeout",				CustomsLoadTimeout,	"5s", "10s", "15s", "20s", "25s", "30s", "45s", "1m" ) );
-	ADD( ConfOption( "CustomsLoadMax",				CustomsLoadMax,		"10", "20", "30", "40", "50", "60", "UNLIMITED" ) );
-
 	ADD( ConfOption( "CustomSongPreviews",				CustomSongPreviews,	"OFF", "ON" ) );
 
 	/* Machine options */

@@ -1,10 +1,19 @@
 #ifndef ARCH_SETUP_WINDOWS_H
 #define ARCH_SETUP_WINDOWS_H
 
-#define HAVE_FFMPEG
-
 #if !defined(XBOX)
 #define SUPPORT_OPENGL
+#endif
+
+/* We're using different macros through the codebase. Declare them all here: */
+#ifdef _WIN32
+#define WIN32
+#define WINDOWS
+#define _WINDOWS
+#endif
+
+#ifdef _DEBUG
+#define DEBUG
 #endif
 
 #define SUPPORT_D3D
@@ -25,9 +34,8 @@
 #define WIN32_LEAN_AND_MEAN
 #define VC_EXTRALEAN
 
-/* Pull in NT-only definitions.  Note that we support Win98 and WinME; you can make
- * NT calls, but be sure to fall back on 9x if they're not supported. */
-#define _WIN32_WINNT 0x0400
+/* Pull in NT-only definitions. We support Windows XP onward. */
+#define _WIN32_WINNT 0x0500
 
 /* If this isn't defined to 0, VC fails to define things like stat and alloca. */
 #define __STDC__ 0
@@ -39,6 +47,9 @@
 #define fsync _commit
 #define isnan _isnan
 #define finite _finite
+
+#pragma warning( disable : 4996 ) /* '_stricmp': The POSIX name for this item is deprecated. Instead, use the ISO C++ conformant name: _stricmp. */
+/* I tried defining stricmp to _stricmp and that's what VS2010 gave me; clearly, the only winning move is not to play. */
 
 /* mkdir is missing the mode arg */
 #define mkdir(p,m) mkdir(p)
@@ -65,7 +76,9 @@ typedef unsigned int uint32_t;
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
 #endif
+#if _MSC_VER < 1600 // 1600 = VC++ 2010
 static inline int64_t llabs( int64_t i ) { return i >= 0? i: -i; }
+#endif // #if _MSC_VER < 1600
 
 #if defined(_MSC_VER)
 #pragma warning (disable : 4201) // nonstandard extension used : nameless struct/union (Windows headers do this)
@@ -96,6 +109,11 @@ static inline int64_t llabs( int64_t i ) { return i >= 0? i: -i; }
 //our cross-platform stdint covers us here
 //#define MISSING_STDINT_H
 
+// MinGW provides us with this function already
+#if !defined(__MINGW32__) \
+		/* VC++ 2013 added support for lrintf	*/\
+		&& (!defined(_MSC_VER) || _MSC_VER < 1800)
+
 inline int lrintf( float f )
 {
 	int retval;
@@ -105,6 +123,8 @@ inline int lrintf( float f )
 
 	return retval;
 }
+#endif
+
 
 /* For RageLog. */
 #define HAVE_VERSION_INFO

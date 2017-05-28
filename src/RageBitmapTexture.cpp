@@ -1,11 +1,8 @@
 #include "global.h"
 #include "RageBitmapTexture.h"
-#include "RageUtil.h"
 #include "RageLog.h"
 #include "RageTextureManager.h"
-#include "RageException.h"
 #include "RageDisplay.h"
-#include "RageTypes.h"
 #include "arch/Dialog/Dialog.h"
 #include "RageSurface.h"
 #include "RageSurfaceUtils.h"
@@ -156,7 +153,7 @@ void RageBitmapTexture::Create()
 		RageSurfaceUtils::Zoom( img, m_iImageWidth, m_iImageHeight );
 
 	// Format of the image that we will pass to OpenGL and that we want OpenGL to use
-	RageDisplay::PixelFormat pixfmt;
+	RageDisplay::RagePixelFormat pixfmt;
 
 	if( actualID.iGrayscaleBits != -1 && DISPLAY->SupportsTextureFormat(RageDisplay::FMT_PAL) )
 	{

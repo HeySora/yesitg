@@ -56,21 +56,33 @@ inline bool CLAMP(float &x, float l, float h)
 	return false;
 }
 
-inline void wrap( int &x, int n )
+template<typename T>
+inline void wrap( T &x, T n )
 {
-	if (x<0)
-		x += ((-x/n)+1)*n;
+	int xi = x;
+	if (xi<0)
+		xi += ((-xi/n)+1)*n;
+	xi %= n;
+	x = static_cast<T>(xi);
+}
+
+template<>
+inline void wrap<unsigned>( unsigned &x, unsigned n )
+{
 	x %= n;
 }
-inline void wrap( unsigned &x, unsigned n )
-{
-	x %= n;
-}
-inline void wrap( float &x, float n )
+
+template<>
+inline void wrap<float>( float &x, float n )
 {
 	if (x<0)
 		x += truncf(((-x/n)+1))*n;
 	x = fmodf(x,n);
+}
+
+inline void wrap( int &x, size_t n )
+{
+	wrap<int>(x, n);
 }
 
 inline float fracf( float f ) { return f - truncf(f); }
@@ -475,46 +487,42 @@ void FileWrite(RageFileBasic& f, int iWrite);
 void FileWrite(RageFileBasic& f, size_t uWrite);
 void FileWrite(RageFileBasic& f, float fWrite);
 
-// stops a currently-running copy operation
-void InterruptCopy();
+/* FileCopy callback, called with the progress of the running copy in
+ * terms of copied bytes. If this returns false, we stop the file copy. */
+typedef bool (*FileCopyFn)( uint64_t iBytesCur, uint64_t iBytesTotal );
 
-/* if OnUpdate() is defined, that function is called after each out.Write(). */
-bool FileCopy( const CString &sSrcFile, const CString &sDstFile, CString &sError, void(*OnUpdate)(unsigned long, unsigned long) = NULL );
-bool FileCopy( RageFileBasic &in, RageFileBasic &out, CString &sError, void(*OnUpdate)(unsigned long, unsigned long) = NULL, bool *bReadError = NULL );
-
-/* versions without an error message argument, for compatibility */
-bool FileCopy( const CString &sSrcFile, const CString &sDstFile, void(*OnUpdate)(unsigned long, unsigned long) = NULL );
-bool FileCopy( RageFileBasic &in, RageFileBasic &out, void(*OnUpdate)(unsigned long, unsigned long) = NULL, bool *bReadError = NULL );
-
+/* FileCopy(): copies sSrcFile to sDstFile. */
+bool FileCopy( const CString &sSrcFile, const CString &sDstFile, FileCopyFn fn = NULL );
+bool FileCopy( const CString &sSrcFile, const CString &sDstFile, CString &sError, FileCopyFn fn = NULL );
+bool FileCopy( RageFileBasic &in, RageFileBasic &out, CString &sError, bool *bReadError = NULL, FileCopyFn fn = NULL );
 
 // a few bitwise operators that may come in handy.
-// all operations are 1-32, i.e. one-indexed.
+// all operations are 0-31, i.e. zero-indexed.
 template<class T>
 inline bool IsBitSet( const T &data, int bit )
 {
-	int iBits = sizeof(T) * 8;
-	return data & ((T)1 << (iBits-bit));
+	// -1, since we have 32 bits indexed as 0..31
+	int bits = sizeof(T) * 8 - 1;
+	return data & ((T)1 << (bits-bit));
 }
 
 template<class T>
 inline void SetBit( T &data, int bit, bool on = true )
 {
-	int iBits = sizeof(T) * 8;
-	int bitval = ((T)1 << (iBits-bit));
+	// -1, since we have 32 bits indexed as 0..31
+	int bits = sizeof(T) * 8 - 1;
+	int bitval = ((T)1 << (bits-bit));
 
-	if( on )
-		data |= bitval;
-	else
-		data &= ~bitval;
+	data = on ? data | bitval : data & ~bitval;
 }
 
 template<class T>
 CString BitsToString( const T &data )
 {
-	int iBits = sizeof(T) * 8;
+	int bits = sizeof(T) * 8;
 	CString ret;
 
-	for( int i = 1; i <= iBits; i++ )
+	for( int i = 0; i < bits; i++ )
 		ret.append( IsBitSet( data, i ) ? "1" : "0" );
 
 	return ret;

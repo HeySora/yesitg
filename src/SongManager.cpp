@@ -1,32 +1,19 @@
 #include "global.h"
 #include "SongManager.h"
-#include "IniFile.h"
 #include "RageLog.h"
 #include "MsdFile.h"
-#include "NotesLoaderDWI.h"
 #include "BannerCache.h"
 
 #include "GameState.h"
 #include "PrefsManager.h"
-#include "RageException.h"
 #include "arch/LoadingWindow/LoadingWindow.h"
-#include "Course.h"
 
-#include "AnnouncerManager.h"
-#include "ThemeManager.h"
-#include "GameManager.h"
-#include "RageFile.h"
 #include "RageTextureManager.h"
 #include "Sprite.h"
 #include "ProfileManager.h"
-#include "MemoryCardManager.h"
 #include "NotesLoaderSM.h"
-#include "SongUtil.h"
-#include "StepsUtil.h"
-#include "CourseUtil.h"
 #include "RageFileManager.h"
 #include "UnlockManager.h"
-#include "Foreach.h"
 #include "StatsManager.h"
 #include "Style.h"
 #include "BackgroundUtil.h"
@@ -97,13 +84,7 @@ void SongManager::Reload( LoadingWindow *ld )
 	const bool OldVal = PREFSMAN->m_bFastLoad;
 	PREFSMAN->m_bFastLoad.Set( false );
 
-#if defined(LINUX) && defined(ITG_ARCADE)
-	system("mount -o remount,rw /itgdata");
-#endif
 	InitAll( ld );
-#if defined(LINUX) && defined(ITG_ARCADE)
-	system("mount -o remount,ro /itgdata");
-#endif
 
 	// reload scores afterward
 	PROFILEMAN->LoadMachineProfile();
@@ -114,12 +95,7 @@ void SongManager::Reload( LoadingWindow *ld )
 void SongManager::InitSongsFromDisk( LoadingWindow *ld )
 {
 	RageTimer tm;
-	
-	/* this loads the songs into m_pMachineSongs */
 	LoadStepManiaSongDir( SONGS_DIR, ld );
-
-	/* now, copy them into m_pSongs */
-	m_pSongs.insert( m_pSongs.begin(), m_pMachineSongs.begin(), m_pMachineSongs.end() );
 
 	LOG->Trace( "Found %d songs in %f seconds.", (int)m_pSongs.size(), tm.GetDeltaTime() );
 }
@@ -185,37 +161,62 @@ void SongManager::LoadStepManiaSongDir( CString sDir, LoadingWindow *ld )
 		sDir += "/";
 
 	// Find all group directories in "Songs" folder
-	CStringArray arrayGroupDirs;
+	vector<CString> arrayGroupDirs;
 	GetDirListing( sDir+"*", arrayGroupDirs, true );
 	SortCStringArray( arrayGroupDirs );
 
-	for( unsigned i=0; i< arrayGroupDirs.size(); i++ )	// for each dir in /Songs/
-	{
-		CString sGroupDirName = arrayGroupDirs[i];
+	/* Build a list of song directories to read through */
+	if( ld )
+		ld->SetText( "Building Songs directory..." );
 
-		SanityCheckGroupDir(sDir+sGroupDirName);
+	unsigned iNumSongsLoaded = 0, iNumSongsToLoad = 0;
+	vector< vector<CString> > arrayGroupSongDirs( arrayGroupDirs.size(), vector<CString>() );
+
+	for( unsigned i=0; i< arrayGroupDirs.size(); ++i )	// for each dir in /Songs/
+	{
+		const CString &sGroupDirName = arrayGroupDirs[i];
+		const CString sGroupDirPath = sDir + sGroupDirName;
+
+		SanityCheckGroupDir( sGroupDirPath );
 
 		// Find all Song folders in this group directory
-		CStringArray arraySongDirs;
-		GetDirListing( sDir+sGroupDirName + "/*", arraySongDirs, true, true );
+		vector<CString> &arraySongDirs = arrayGroupSongDirs[i];
+		GetDirListing( sGroupDirPath + "/*" /**/, arraySongDirs, true, true );
 		SortCStringArray( arraySongDirs );
 
-		LOG->Trace("Attempting to load %i songs from \"%s\"", int(arraySongDirs.size()),
-				   (sDir+sGroupDirName).c_str() );
-		int loaded = 0;
+		iNumSongsToLoad += arraySongDirs.size();
+		LOG->Trace( "Found %d song folders in \"%s\"", arraySongDirs.size(), sGroupDirPath.c_str() );
+	}
 
-		for( unsigned j=0; j< arraySongDirs.size(); ++j )	// for each song dir
+	ASSERT( arrayGroupDirs.size() == arrayGroupSongDirs.size() );
+
+	for( unsigned i = 0; i < arrayGroupSongDirs.size(); ++i )
+	{
+		vector<CString> &arraySongDirs = arrayGroupSongDirs[i];
+		const CString &sGroupDirName = arrayGroupDirs[i];
+
+		unsigned iLoadedFromThisDir = 0;
+
+		for( unsigned j = 0; j < arraySongDirs.size(); ++j )
 		{
-			CString sSongDirName = arraySongDirs[j];
+			const CString &sSongDirName = arraySongDirs[j];
+			++iNumSongsLoaded;
 
-			// this is a song directory.  Load a new song!
 			if( ld )
 			{
-				ld->SetText( ssprintf("Loading songs...\n%s\n%s",
-									  Basename(sGroupDirName).c_str(),
-									  Basename(sSongDirName).c_str()));
+				ld->SetProgress( iNumSongsLoaded, iNumSongsToLoad );
+
+				ld->SetText(
+					ssprintf("Loading songs (%d of %d)...\n%s\n%s",
+						iNumSongsLoaded, iNumSongsToLoad,
+						Basename(sGroupDirName).c_str(),
+						Basename(sSongDirName).c_str()
+					)
+				);
+
 				ld->Paint();
 			}
+
 			Song* pNewSong = new Song;
 			if( !pNewSong->LoadFromSongDir( sSongDirName ) )
 			{
@@ -223,22 +224,23 @@ void SongManager::LoadStepManiaSongDir( CString sDir, LoadingWindow *ld )
 				delete pNewSong;
 				continue;
 			}
-			
-			m_pMachineSongs.push_back( pNewSong );
-			loaded++;
+
+			m_pSongs.push_back( pNewSong );
+			++iLoadedFromThisDir;
 		}
 
-		LOG->Trace("Loaded %i songs from \"%s\"", loaded, (sDir+sGroupDirName).c_str() );
+		LOG->Trace("Loaded %i songs from \"%s\"", iLoadedFromThisDir, (sDir+sGroupDirName).c_str() );
 
 		/* Don't add the group name if we didn't load any songs in this group. */
-		if(!loaded) continue;
+		if( iLoadedFromThisDir == 0 )
+			continue;
 
 		/* Add this group to the group array. */
 		AddGroup(sDir, sGroupDirName);
 
 		/* Cache and load the group banner. */
 		BANNERCACHE->CacheBanner( GetGroupBannerPath(sGroupDirName) );
-		
+
 		/* Load the group sym links (if any)*/
 		LoadGroupSymLinks(sDir, sGroupDirName);
 	}
@@ -290,7 +292,7 @@ void SongManager::LoadPlayerCourses( PlayerNumber pn )
 	sGroupName = sDisplayName + "\'s Courses";
 
 	unsigned i = 0;
-	for ( i; i < arrayProfileCourses.size(); i++ )
+	for ( ; i < arrayProfileCourses.size(); i++ )
 	{
 		Course *crs = new Course;
 		crs->LoadFromCRSFile( arrayProfileCourses[i], true );
@@ -315,7 +317,7 @@ void SongManager::LoadPlayerCourses( PlayerNumber pn )
 			delete crs;
 			continue;
 		}
-		
+
 		// TODO: softcode this to a settable preference
 		if ( crs->GetEstimatedNumStages() > 5 )
 		{
@@ -407,17 +409,9 @@ void SongManager::LoadPlayerSongs( PlayerNumber pn )
 			break;
 		}
 
-		// we want to stop right on the number, not after. "Greater than" is added as a safeguard.
-		if( PREFSMAN->m_iCustomsLoadMax > 0 && iSongsLoaded >= PREFSMAN->m_iCustomsLoadMax )
-		{
-			LOG->Warn( "Loading interrupted. Limit of %i songs was reached, after %f seconds.",
-			(int)PREFSMAN->m_iCustomsLoadMax, LoadTimer.Ago() );
-			break;
-		}
-
 		CString sSongDirName = arraySongDirs[j];
 		Song* pNewSong = new Song;
-		
+
 		// we need a custom loader for these songs.
 		if( !pNewSong->LoadFromCustomSongDir( sSongDirName, sGroupName, pn ) )
 		{
@@ -426,12 +420,9 @@ void SongManager::LoadPlayerSongs( PlayerNumber pn )
 			delete pNewSong;
 			continue;
 		}
-		
+
 		LOG->Trace( "Loading custom song '%s'...", pNewSong->m_sMainTitle.c_str() );
-		
-		// TODO: load everything into m_pCustomSongs, then insert() into m_pSongs,
-		// instead of manually inserting the song into both arrays.
-		m_pCustomSongs.push_back( pNewSong );
+
 		m_pSongs.push_back( pNewSong );
 		iSongsLoaded++;
 	}
@@ -473,7 +464,7 @@ void SongManager::LoadGroupSymLinks(CString sDir, CString sGroupFolder)
 
 			pNewSong->m_bIsSymLink = true;	// Very important so we don't double-parse later
 			pNewSong->m_sGroupName = sGroupFolder;
-			m_pMachineSongs.push_back( pNewSong );
+			m_pSongs.push_back( pNewSong );
 		}
 	}
 }
@@ -513,16 +504,8 @@ void SongManager::FreeSongs()
 	m_sSongGroupNames.clear();
 	m_sSongGroupBannerPaths.clear();
 
-	for( unsigned i=0; i<m_pCustomSongs.size(); i++ )
-		SAFE_DELETE( m_pCustomSongs[i] );
-	m_pCustomSongs.clear();
-
-	for( unsigned i=0; i<m_pMachineSongs.size(); i++ )
-		SAFE_DELETE( m_pMachineSongs[i] );
-	m_pMachineSongs.clear();
-
-	// m_pSongs is simply cleared because all its pointers
-	// were already freed in the two previous vectors
+	for( unsigned i=0; i<m_pSongs.size(); i++ )
+		SAFE_DELETE( m_pSongs[i] );
 	m_pSongs.clear();
 
 	m_sSongGroupBannerPaths.clear();
@@ -1499,20 +1482,16 @@ void SongManager::FreeAllLoadedPlayerCourses()
 
 void SongManager::FreeAllLoadedPlayerSongs()
 {
-	// if we don't have any songs to free, don't bother
-	if( m_pCustomSongs.empty() )
-		return;
-
 	LOG->Trace( "SongManager::FreeAllLoadedPlayerSongs()" );
 
-	/* free the previously loaded song data */
-	for( unsigned i = 0; i < m_pCustomSongs.size(); i++ )
-		SAFE_DELETE( m_pCustomSongs[i] );
-	m_pCustomSongs.clear();
-
-	/* Now, we just need to rebuild m_pSongs from m_pMachineSongs. */
-	m_pSongs.clear();
-	m_pSongs.insert( m_pSongs.begin(), m_pMachineSongs.begin(), m_pMachineSongs.end() );
+	for(unsigned i = 0; i < m_pSongs.size(); i++)
+	{
+		if (m_pSongs[i]->m_SongOwner != PLAYER_INVALID)
+		{
+			SAFE_DELETE(m_pSongs[i]);
+			m_pSongs.erase( m_pSongs.begin()+i );
+		}
+	}
 }
 
 void SongManager::FreeAllLoadedFromProfile( ProfileSlot slot )
@@ -1546,7 +1525,6 @@ int SongManager::GetNumStepsLoadedFromProfile()
 
 
 // lua start
-#include "LuaBinding.h"
 
 template<class T>
 class LunaSongManager : public Luna<T>
@@ -1601,7 +1579,6 @@ LUA_REGISTER_CLASS( SongManager )
 
 
 
-#include "LuaFunctions.h"
 
 CString GetCurrentSongDisplayTitle()
 {

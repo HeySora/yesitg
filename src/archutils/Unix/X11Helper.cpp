@@ -7,6 +7,10 @@
 #include "RageDisplay.h"
 #include "RageThreads.h"
 
+#include <vector>           // std::vector
+#include <typeinfo>         // typeid
+#include "ScreenDimensions.h" // SCREEN_WIDTH, SCREEN_HEIGHT
+
 // Currently open masks:
 static vector<long> g_aiMasks;
 
@@ -17,7 +21,8 @@ static int g_iRefCount = 0;
 static bool g_bHaveWin = false;
 
 Display *X11Helper::Dpy = NULL;
-Window X11Helper::Win;
+std::vector<Window> X11Helper::Wins;
+std::vector<GLXContext> X11Helper::Ctxs;
 
 int protoErrorCallback( Display*, XErrorEvent* );
 int protoFatalCallback( Display* );
@@ -80,10 +85,51 @@ static bool pApplyMasks()
 	for( unsigned i = 0; i < g_aiMasks.size(); ++i )
 		iMask |= g_aiMasks[i];
 
-	if( XSelectInput(X11Helper::Dpy, X11Helper::Win, iMask) == 0 )
+	for (unsigned int i = 0; i < X11Helper::Wins.size(); i++)
+	{
+		if( XSelectInput(X11Helper::Dpy, X11Helper::Wins[i], iMask) == 0 )
 		return false;
+	}
 
 	return true;
+}
+
+// Stole from RageDisplay_OGL.cpp D: ~Sora
+void X11Helper::SetViewport(int shift_left, int shift_down)
+{
+	/* left and down are on a 0..SCREEN_WIDTH, 0..SCREEN_HEIGHT scale.
+	 * Scale them to the actual viewport range. */
+	shift_left = int( shift_left * float(DISPLAY->GetVideoModeParams().width) / SCREEN_WIDTH );
+	shift_down = int( shift_down * float(DISPLAY->GetVideoModeParams().height) / SCREEN_HEIGHT );
+
+	glViewport(shift_left, -shift_down, DISPLAY->GetVideoModeParams().width, DISPLAY->GetVideoModeParams().height);
+}
+
+bool X11Helper::SetCurrentContext(unsigned int i)
+{
+	ASSERT( Wins.size() > i && Ctxs.size() > i );
+	return glXMakeCurrent( Dpy, Wins[i], Ctxs[i] );
+}
+
+void X11Helper::DestroyWindow( unsigned int i )
+{
+	ASSERT( Wins.size() > i );
+	XDestroyWindow( Dpy, Wins[i] );
+	Wins.erase(Wins.begin() + i);
+	Ctxs.erase(Ctxs.begin() + i);
+	if (i == 0)
+	{
+		g_bHaveWin = false;
+	}
+}
+
+void X11Helper::DestroyWindow( Window w )
+{
+	ASSERT( std::find(Wins.begin(),Wins.end(),w) != Wins.end() );
+	XDestroyWindow( Dpy, w );
+	Wins.erase(std::find(Wins.begin(),Wins.end(),w));
+	int dis = std::distance(Wins.begin(), std::find(Wins.begin(),Wins.end(),w));
+	Ctxs.erase(Ctxs.begin() + dis);
 }
 
 bool X11Helper::MakeWindow( int screenNum, int depth, Visual *visual, int width, int height, bool bOverrideRedirect )
@@ -93,13 +139,14 @@ bool X11Helper::MakeWindow( int screenNum, int depth, Visual *visual, int width,
 	if( g_iRefCount == 0 )
 		return false;
 
+	// Behaviour disabled to allow multiple Windows to be drawn. ~Sora
+	/*
 	if( g_bHaveWin )
 	{
 		XDestroyWindow( Dpy, Win );
 		g_bHaveWin = false;
 	}
-		// pHaveWin will stay false if an error occurs once I do error
-		// checking here...
+	*/
 
 	XSetWindowAttributes winAttribs;
 
@@ -120,22 +167,29 @@ bool X11Helper::MakeWindow( int screenNum, int depth, Visual *visual, int width,
 	unsigned long mask = CWBorderPixel | CWColormap | CWEventMask;
 	if ( bOverrideRedirect ) mask |= CWOverrideRedirect;
 
-	Win = XCreateWindow( Dpy, RootWindow(Dpy, screenNum), 0, 0, width, 
-		height, 0, depth, InputOutput, visual, mask, &winAttribs );
+	// Add the window to the vector ~Sora
+	Wins.push_back(XCreateWindow( Dpy, RootWindow(Dpy, screenNum), 0, 0, width, 
+			height, 0, depth, InputOutput, visual, mask, &winAttribs ));      
 
-	g_bHaveWin = true;
+	if (g_bHaveWin)
+		LOG->Trace("X11Helper: Creating an additional Window !");
+	else
+		g_bHaveWin = true;
 
 	/* Hide the mouse cursor. */
 	{
-		const char pBlank[] = { 0,0,0,0,0,0,0,0 };
-		Pixmap BlankBitmap = XCreateBitmapFromData( Dpy, Win, pBlank, 8, 8 );
+		for (unsigned int i = 0; i < Wins.size(); i++)
+		{
+			const char pBlank[] = { 0,0,0,0,0,0,0,0 };
+			Pixmap BlankBitmap = XCreateBitmapFromData( Dpy, Wins[i], pBlank, 8, 8 );
 
-		XColor black = { 0, 0, 0, 0, 0, 0 };
-		Cursor pBlankPointer = XCreatePixmapCursor( Dpy, BlankBitmap, BlankBitmap, &black, &black, 0, 0 );
-		XFreePixmap( Dpy, BlankBitmap );
+			XColor black = { 0, 0, 0, 0, 0, 0 };
+			Cursor pBlankPointer = XCreatePixmapCursor( Dpy, BlankBitmap, BlankBitmap, &black, &black, 0, 0 );
+			XFreePixmap( Dpy, BlankBitmap );
 
-		XDefineCursor( Dpy, Win, pBlankPointer );
-		XFreeCursor( Dpy, pBlankPointer );
+			XDefineCursor( Dpy, Wins[i], pBlankPointer );
+			XFreeCursor( Dpy, pBlankPointer );
+		}
 	}
 
 	return true;
@@ -154,6 +208,60 @@ int protoErrorCallback( Display *d, XErrorEvent *err )
 int protoFatalCallback( Display *d )
 {
 	RageException::Throw( "Fatal I/O error communicating with X server." );
+}
+
+Display *X11Helper::GetDpy()
+{
+	return Dpy;
+}
+
+std::vector<Window> X11Helper::GetWins()
+{
+	return Wins;
+}
+
+std::vector<GLXContext> X11Helper::GetCtxs()
+{
+	return Ctxs;
+}
+
+
+namespace H
+{
+	Display *X11Helper::GetDpy()
+	{
+		return ::X11Helper::GetDpy();
+	}
+
+	std::vector<Window> X11Helper::GetWins()
+	{
+		return ::X11Helper::GetWins();
+	}
+
+	std::vector<GLXContext> X11Helper::GetCtxs()
+	{
+		return ::X11Helper::GetCtxs();
+	}
+
+	void X11Helper::SetViewport(int shift_left, int shift_right)
+	{
+		::X11Helper::SetViewport(shift_left, shift_right);
+	}
+
+	bool X11Helper::SetCurrentContext(unsigned int i)
+	{
+		return ::X11Helper::SetCurrentContext(i);
+	}
+
+	void X11Helper::DestroyWindow(unsigned int i)
+	{
+		::X11Helper::DestroyWindow(i);
+	}
+
+	void X11Helper::DestroyWindow(Window w)
+	{
+		::X11Helper::DestroyWindow(w);
+	}
 }
 
 /*

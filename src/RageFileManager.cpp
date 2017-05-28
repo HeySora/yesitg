@@ -1,12 +1,9 @@
 
 #include "global.h"
-#include "RageFileManager.h"
 #include "RageFileDriver.h"
-#include "RageFile.h"
 #include "RageUtil.h"
 #include "RageUtil_FileDB.h"
 #include "RageLog.h"
-#include "RageThreads.h"
 #include "Foreach.h"
 #include "arch/ArchHooks/ArchHooks.h"
 
@@ -321,6 +318,7 @@ CString LoadedDriver::GetPath( const CString &sPath ) const
 	return sRet;
 }
 
+/* Normalize a virtual path */
 static void NormalizePath( CString &sPath )
 {
 	FixSlashesInPlace( sPath );
@@ -712,7 +710,7 @@ CString RageFileManager::ResolvePath( const CString &sPath_ )
 	CString sPath = sPath_;
 	NormalizePath( sPath );
 
-	CString sResolvedPath = "";
+	CString sResolvedPath = sPath;
 
 	vector<LoadedDriver *> apDriverList;
 	ReferenceAllDrivers( apDriverList );
@@ -720,24 +718,23 @@ CString RageFileManager::ResolvePath( const CString &sPath_ )
 	for( unsigned i = 0; i < apDriverList.size(); ++i )
 	{
 		LoadedDriver *pDriver = apDriverList[i];
+		const CString sDriverPath = pDriver->GetPath( sPath );
 
-		FileType type = pDriver->m_pDriver->GetFileType(sPath);
-
-		if( type != TYPE_DIR )
+		if ( sDriverPath.empty() || pDriver->m_sRoot.empty() )
 			continue;
 
-		sResolvedPath = pDriver->m_sRoot + sPath;
+		if ( pDriver->m_sType != "dir" && pDriver->m_sType != "dirro" )
+			continue;
+	
+		int iMountPointLen = pDriver->m_sMountPoint.length();
+		if( sPath.substr(0, iMountPointLen) != pDriver->m_sMountPoint )
+			continue;
 
-		LOG->Debug( "sPath: %s, pDriver->m_sRoot: %s, sResolvedPath: %s",
-			sPath.c_str(), pDriver->m_sRoot.c_str(), sResolvedPath.c_str() );
-
+		sResolvedPath = pDriver->m_sRoot + "/" + CString(sPath.substr(iMountPointLen));
 		break;
 	}
 
 	UnreferenceAllDrivers( apDriverList );
-
-	NormalizePath( sResolvedPath );
-	LOG->Debug( "\"%s\" resolved to \"%s\".", sPath_.c_str(), sResolvedPath.c_str() );
 
 	return sResolvedPath;
 }
@@ -846,6 +843,12 @@ RageFileBasic *RageFileManager::OpenForWriting( const CString &sPath, int mode, 
 	for( unsigned i = 0; i < apDriverList.size(); ++i )
 	{
 		LoadedDriver &ld = *apDriverList[i];
+
+		// HACK: skip over "dirro". We should find a more generic
+		// method for this (skipping drivers that cannot write)
+		if( ld.m_sType == "dirro" )
+			continue;
+
 		const CString path = ld.GetPath( sPath );
 		if( path.empty() )
 			continue;
@@ -878,6 +881,7 @@ RageFileBasic *RageFileManager::OpenForWriting( const CString &sPath, int mode, 
 
 		int iThisError;
 		RageFileBasic *pRet = ld.m_pDriver->Open( sDriverPath, mode, iThisError );
+
 		if( pRet )
 		{
 			UnreferenceAllDrivers( apDriverList );

@@ -1,11 +1,6 @@
 #include "global.h"
 #include "ScreenGameplay.h"
-#include "SongManager.h"
-#include "ScreenManager.h"
-#include "GameConstantsAndTypes.h"
-#include "PrefsManager.h"
 #include "GameManager.h"
-#include "SongManager.h"
 #include "RageLog.h"
 #include "LifeMeterBar.h"
 #include "LifeMeterBattery.h"
@@ -15,44 +10,33 @@
 #include "ScoreDisplayPercentage.h"
 #include "ScoreDisplayLifeTime.h"
 #include "ScoreDisplayOni.h"
-#include "ScoreDisplayBattle.h"
 #include "ScoreDisplayRave.h"
-#include "ScreenPrompt.h"
-#include "GrooveRadar.h"
-#include "NotesLoaderSM.h"
-#include "ThemeManager.h"
-#include "RageTimer.h"
 #include "ScoreKeeperMAX2.h"
 #include "ScoreKeeperRave.h"
-#include "NoteFieldPositioning.h"
 #include "LyricsLoader.h"
-#include "ActorUtil.h"
-#include "NoteSkinManager.h"
-#include "RageTextureManager.h"
 #include "GameSoundManager.h"
 #include "CombinedLifeMeterTug.h"
-#include "Inventory.h"
-#include "Course.h"
 #include "NoteDataUtil.h"
-#include "UnlockManager.h"
 #include "LightsManager.h"
 #include "ProfileManager.h"
 #include "StatsManager.h"
 #include "PlayerAI.h"	// for NUM_SKILL_LEVELS
-#include "NetworkSyncManager.h"
-#include "Foreach.h"
 #include "DancingCharacters.h"
 #include "ScreenDimensions.h"
-#include "ThemeMetric.h"
 #include "PlayerState.h"
 #include "Style.h"
-#include "LuaManager.h"
 #include "MemoryCardManager.h"
 #include "CommonMetrics.h"
-#include "InputMapper.h"
 #include "Game.h"
 #include "RageFileManager.h" // XXX!!! needed for custom song cleanup, remove as soon as we can
 #include "AnnouncerManager.h"
+#include "Course.h"
+#include "Inventory.h"
+
+namespace Blah
+{
+	#include "arch/LowLevelWindow/LowLevelWindow.h"
+}
 
 //
 // Defines
@@ -113,12 +97,15 @@ ScreenGameplay::ScreenGameplay( CString sName ) : ScreenWithMenuElements(sName)
 
 void ScreenGameplay::Init()
 {
+	Blah::LowLevelWindow::Create()->CreateAdditionalWindow();
 	ScreenWithMenuElements::Init();
 
 	/* Pause MEMCARDMAN.  If a memory card is remove, we don't want to interrupt the
 	 * player by making a noise until the game finishes. */
 	if( !GAMESTATE->m_bDemonstrationOrJukebox )
+	{	
 		MEMCARDMAN->PauseMountingThread();
+	}
 
 	m_pSoundMusic = NULL;
 	m_bPaused = false;
@@ -425,14 +412,6 @@ void ScreenGameplay::Init()
 		m_pPrimaryScoreDisplay[p]->Init( GAMESTATE->m_pPlayerState[p] );
 		m_pPrimaryScoreDisplay[p]->SetName( ssprintf("ScoreP%d",p+1) );
 		m_pPrimaryScoreDisplay[p]->SetEffectClock( CLOCK_BGM_BEAT );
-
-		/* used for comparing players' scores */
-		/* UGLY: we can't use ActorUtil here due to an Actor derivative in a pointer, so manually add it */
-		if( m_bCompareScores )
-		{
-			m_pPrimaryScoreDisplay[p]->AddCommand( "Ahead", THEME->GetMetricA( m_sName, m_pPrimaryScoreDisplay[p]->GetName()+"AheadCommand") );
-			m_pPrimaryScoreDisplay[p]->AddCommand( "Behind", THEME->GetMetricA( m_sName, m_pPrimaryScoreDisplay[p]->GetName()+"BehindCommand") );
-		}
 
 		SET_XY( *m_pPrimaryScoreDisplay[p] );
 		if( GAMESTATE->m_PlayMode != PLAY_MODE_RAVE || SHOW_SCORE_IN_RAVE ) /* XXX: ugly */
@@ -882,6 +861,7 @@ void ScreenGameplay::LoadNextSong()
 	int iPlaySongIndex = GAMESTATE->GetCourseSongIndex();
 	iPlaySongIndex %= m_apSongsQueue.size();
 	GAMESTATE->m_pCurSong.Set( m_apSongsQueue[iPlaySongIndex] );
+	GAMESTATE->SetSongInProgress( GAMESTATE->m_pCurSong->GetSongDir() );
 	STATSMAN->m_CurStageStats.vpPlayedSongs.push_back( GAMESTATE->m_pCurSong );
 
 	// No need to do this here.  We do it in SongFinished().
@@ -1348,20 +1328,6 @@ void ScreenGameplay::UpdateSongPosition( float fDeltaTime )
 
 	float fSecondsTotal = fSeconds+fAdjust; 
 
-	// give a bit of leeway - ITG's R23 feature cuts off at 2:10 instead of 2:00, so add 10 to the limit
-	// UPDATE: made obsolete with the new custom song system
-	/*
-	if (m_bSongIsCustom && (PREFSMAN->m_iCustomMaxSeconds > 0) && fSecondsTotal > MAX_CUSTOM_LENGTH )
-	{
-		LOG->Warn( "Custom songs time limit of %f seconds exceeded (%f seconds); ending early.",
-			MAX_CUSTOM_LENGTH, fSecondsTotal );
-
-                m_pSoundMusic->StopPlaying();
-                m_soundAssistTick.StopPlaying(); // Stop any queued assist ticks.
-		m_SongFinished.StartTransitioning( SM_NotesEnded );
-	}
-	*/
-
 	GAMESTATE->UpdateSongPosition( fSecondsTotal, GAMESTATE->m_pCurSong->m_Timing, tm+fAdjust );
 }
 
@@ -1772,17 +1738,11 @@ void ScreenGameplay::UpdateLights()
 	bool bBlinkGameButton[MAX_GAME_CONTROLLERS][MAX_GAME_BUTTONS];
 	ZERO( bBlinkCabinetLight );
 	ZERO( bBlinkGameButton );
-	bool bCrossedABeat = false;
 	{
 		const float fSongBeat = GAMESTATE->m_fLightSongBeat;
 		const int iSongRow = BeatToNoteRowNotRounded( fSongBeat );
 
 		static int iRowLastCrossed = 0;
-
-		float fBeatLast = roundf(NoteRowToBeat(iRowLastCrossed));
-		float fBeatNow = roundf(NoteRowToBeat(iSongRow));
-
-		bCrossedABeat = fBeatLast != fBeatNow;
 
 		FOREACH_CabinetLight( cl )
 		{	
@@ -1849,6 +1809,7 @@ void ScreenGameplay::UpdateLights()
 	{
 		int iSeg = GAMESTATE->m_pCurSong->m_Timing.GetBPMSegmentIndexAtBeat( GAMESTATE->m_fSongBeat + 0.5 );
 		fLength = (0.25 / GAMESTATE->m_pCurSong->m_Timing.m_BPMSegments[iSeg].m_fBPS) + 0.01;
+		fLength = max( fLength, 0.0425f );
 	}	
 
 	// Send blink data.
@@ -1995,6 +1956,9 @@ void ScreenGameplay::AbortGiveUp( bool bShowText )
 	if( m_GiveUpTimer.IsZero() )
 		return;
 
+	if ( !bShowText )
+		GAMESTATE->SetSongInProgress("(none)");
+
 	m_textDebug.StopTweening();
 	if( bShowText )
 		m_textDebug.SetText( GIVE_UP_ABORTED_TEXT );
@@ -2129,7 +2093,7 @@ void ScreenGameplay::Input( const DeviceInput& DeviceI, const InputEventType typ
 void ScreenGameplay::SongFinished()
 {
 	// save any statistics
-    FOREACH_EnabledPlayer(p)
+	FOREACH_EnabledPlayer(p)
 	{
 		/* Note that adding stats is only meaningful for the counters (eg. RADAR_NUM_JUMPS),
 		 * not for the percentages (RADAR_AIR). */
@@ -2144,6 +2108,7 @@ void ScreenGameplay::SongFinished()
 
 	/* Extremely important: if we don't remove attacks before moving on to the next
 	 * screen, they'll still be turned on eventually. */
+	GAMESTATE->SetSongInProgress("(none)");
 	GAMESTATE->RemoveAllActiveAttacks();
 	FOREACH_EnabledPlayer( p )
 		m_ActiveAttackList[p].Refresh();

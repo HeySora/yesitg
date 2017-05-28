@@ -2,13 +2,7 @@
 
 #include "global.h"
 #include "GameManager.h"
-#include "PrefsManager.h"
-#include "GameConstantsAndTypes.h"
-#include "GameState.h"
-#include "GameInput.h"	// for GameButton constants
-#include "IniFile.h"
 #include "RageLog.h"
-#include "RageUtil.h"
 #include "NoteSkinManager.h"
 #include "RageInputDevice.h"
 #include "ThemeManager.h"
@@ -152,7 +146,6 @@ Game g_Games[NUM_GAMES] =
 			GAME_BUTTON_COIN,		// MENU_BUTTON_COIN
 			GAME_BUTTON_OPERATOR,		// MENU_BUTTON_OPERATOR
 		},
-		/* Adding default mappings for Select -- Vyhd */
 		{	// m_iDefaultKeyboardKey
 			{	// PLAYER_1
 				KEY_DEL,			// GAME_BUTTON_MENULEFT
@@ -160,7 +153,7 @@ Game g_Games[NUM_GAMES] =
 				KEY_HOME,			// GAME_BUTTON_MENUUP
 				KEY_END,			// GAME_BUTTON_MENUDOWN
 				KEY_ENTER,			// GAME_BUTTON_START
-				KEY_RSHIFT,		 	// GAME_BUTTON_SELECT
+				KEY_SLASH,		 	// GAME_BUTTON_SELECT
 				KEY_ESC,			// GAME_BUTTON_BACK
 				KEY_F1,				// GAME_BUTTON_COIN
 				KEY_SCRLLOCK,			// GAME_BUTTON_OPERATOR

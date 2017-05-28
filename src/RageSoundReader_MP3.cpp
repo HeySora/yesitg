@@ -2,7 +2,6 @@
 
 #include "global.h"
 #include "RageSoundReader_MP3.h"
-#include "RageLog.h"
 #include "RageUtil.h"
 
 #include <cstdio>
@@ -504,12 +503,13 @@ void RageSoundReader_MP3::synth_output()
 	}
 
 	mad_synth_frame(&mad->Synth, &mad->Frame);
+	short *out = (short *)mad->outbuf;
 	for(int i=0; i < mad->Synth.pcm.length; i++)
 	{
 		for(int chan = 0; chan < this->Channels; ++chan)
 		{
 			short Sample = (short) scale(mad->Synth.pcm.samples[chan][i]);
-			*((short *) (mad->outbuf + mad->outleft)) = Sample;
+			*out++ = Sample;
 			mad->outleft += 2;
 		}
 	}

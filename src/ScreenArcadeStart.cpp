@@ -1,11 +1,5 @@
 /* Basic screen functions */
 #include "global.h"
-#include "RageLog.h"
-#include "RageTimer.h"
-#include "RageUtil.h"
-#include "ThemeManager.h"
-#include "ScreenManager.h"
-#include "LightsManager.h"
 #include "ScreenArcadeStart.h"
 
 /* diagnostics functions */
@@ -15,15 +9,14 @@
 #include "io/USBDevice.h"
 
 /* Input board loading/testing */
-#include "io/USBDriver.h"
-#include "io/PIUIO.h"
-#include "io/ITGIO.h"
 
 /* InputHandler loading */
 #include "RageInput.h"
 #include "InputMapper.h"
 #include "arch/InputHandler/InputHandler_Iow.h"
 #include "arch/InputHandler/InputHandler_PIUIO.h"
+#include "arch/InputHandler/InputHandler_MiniMaid.h"
+#include "arch/InputHandler/InputHandler_P3IO.h"
 
 #define NEXT_SCREEN	THEME->GetMetric( m_sName, "NextScreen" )
 
@@ -150,7 +143,7 @@ bool ScreenArcadeStart::CheckForHub()
 bool ScreenArcadeStart::LoadHandler()
 {
 	// this makes it so much easier to keep track of. --Vyhd
-	enum Board { BOARD_NONE, BOARD_ITGIO, BOARD_PIUIO };
+	enum Board { BOARD_NONE, BOARD_ITGIO, BOARD_PIUIO, BOARD_MINIMAID, BOARD_P3IO };
 	Board iBoard = BOARD_NONE;
 
 	{
@@ -163,6 +156,10 @@ bool ScreenArcadeStart::LoadHandler()
 				iBoard = BOARD_ITGIO;
 			else if( vDevices[i].IsPIUIO() )
 				iBoard = BOARD_PIUIO;
+			else if( vDevices[i].IsMiniMaid() )
+				iBoard = BOARD_MINIMAID;
+			else if( vDevices[i].IsP3IO() )
+				iBoard = BOARD_P3IO;
 
 			// early abort if we found something
 			if( iBoard != BOARD_NONE )
@@ -176,6 +173,8 @@ bool ScreenArcadeStart::LoadHandler()
 		pDriver = new ITGIO;
 	else if( iBoard == BOARD_PIUIO )
 		pDriver = new PIUIO;
+	else if( iBoard == BOARD_MINIMAID )
+		pDriver = new MiniMaid;
 	else
 #ifdef ITG_ARCADE
 	{
@@ -206,6 +205,8 @@ bool ScreenArcadeStart::LoadHandler()
 		INPUTMAN->AddHandler( new InputHandler_Iow );
 	else if( iBoard == BOARD_PIUIO )
 		INPUTMAN->AddHandler( new InputHandler_PIUIO );
+	else if( iBoard == BOARD_MINIMAID )
+		INPUTMAN->AddHandler( new InputHandler_MiniMaid );
 	else
 		ASSERT(0);
 

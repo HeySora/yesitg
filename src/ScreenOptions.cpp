@@ -1,17 +1,10 @@
 #include "global.h"
 #include "ScreenOptions.h"
-#include "RageUtil.h"
-#include "ScreenManager.h"
 #include "PrefsManager.h"
-#include "GameConstantsAndTypes.h"
 #include "RageLog.h"
 #include "GameState.h"
-#include "ThemeManager.h"
 #include "InputMapper.h"
-#include "ActorUtil.h"
-#include "ProfileManager.h"
 #include "ScreenDimensions.h"
-#include "Command.h"
 
 
 /*
@@ -926,17 +919,11 @@ void ScreenOptions::ChangeValueInRow( PlayerNumber pn, int iDelta, bool Repeat )
 	if( Repeat && !ALLOW_REPEATING_CHANGE_VALUE_INPUT )
 		return;
 
-	bool bOneChanged = false;
-
-
 	int iCurrentChoiceWithFocus = row.GetChoiceInRowWithFocus(pn);
 	int iNewChoiceWithFocus = iCurrentChoiceWithFocus + iDelta;
 	ASSERT( iNumChoices > 0 );
 	wrap( iNewChoiceWithFocus, iNumChoices );
 	
-	if( iCurrentChoiceWithFocus != iNewChoiceWithFocus )
-		bOneChanged = true;
-
 	row.SetChoiceInRowWithFocus( pn, iNewChoiceWithFocus );
 	StoreFocus( pn );
 

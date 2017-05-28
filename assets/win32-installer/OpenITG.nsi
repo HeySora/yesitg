@@ -5,10 +5,10 @@ Name "OpenITG"
 
 # General Symbol Definitions
 !define PROGRAM_NAME "OpenITG"
-!define PRODUCT_NAME "OpenITG beta 2"
+!define PRODUCT_NAME "OpenITG"
 !define REGKEY "SOFTWARE\${PRODUCT_NAME}"
 !define SETUP_FILE_NAME "${PRODUCT_NAME}-setup.exe"
-!define URL "http://openitg.gr-p.com"
+!define URL "http://www.github.com/openitg"
 
 # MUI Symbol Definitions
 !define MUI_ICON "Data\oitgb2_48.ico"
@@ -17,7 +17,7 @@ Name "OpenITG"
 !define MUI_STARTMENUPAGE_REGISTRY_KEY ${REGKEY}
 !define MUI_STARTMENUPAGE_REGISTRY_VALUENAME StartMenuGroup
 !define MUI_STARTMENUPAGE_DEFAULTFOLDER "${PRODUCT_NAME}"
-!define MUI_FINISHPAGE_SHOWREADME $INSTDIR\Docs\release\ReleaseNotes.txt
+!define MUI_FINISHPAGE_SHOWREADME $INSTDIR\ReleaseNotes.txt
 !define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall-blue-full.ico"
 !define MUI_UNFINISHPAGE_NOAUTOCLOSE
 
@@ -149,23 +149,23 @@ Section -Main SEC0000
     SetOutPath $INSTDIR
     SetOverwrite on
     File /r /x "${SETUP_FILE_NAME}" /x src /x OpenITG.nsi /x ASF.ini *
-    SetOutPath $INSTDIR\Program
-    File Program\zlib1.dll
-    File Program\avcodec.dll
-    File Program\avformat.dll
-    File Program\dbghelp.dll
-    File Program\jpeg.dll
-    File Program\libusb0.dll
-    File Program\msvcp70.dll
-    File Program\msvcp71.dll
-    File Program\msvcr70.dll
-    File Program\msvcr71.dll
-    File Program\OpenITG-PC.exe
-    File Program\OpenITG-PC.vdi
-    File Program\OpenITG-PC-SSE2.exe
-    File Program\OpenITG-PC-SSE2.vdi
-    File Program\resample.dll
-    File Program\sdl.dll
+    #SetOutPath $INSTDIR\Program
+    #File Program\zlib1.dll
+    #File Program\avcodec.dll
+    #File Program\avformat.dll
+    #File Program\dbghelp.dll
+    #File Program\jpeg.dll
+    #File Program\libusb0.dll
+    #File Program\msvcp70.dll
+    #File Program\msvcp71.dll
+    #File Program\msvcr70.dll
+    #File Program\msvcr71.dll
+    #File Program\OpenITG-PC.exe
+    #File Program\OpenITG-PC.vdi
+    #File Program\OpenITG-PC-SSE2.exe
+    #File Program\OpenITG-PC-SSE2.vdi
+    #File Program\resample.dll
+    #File Program\sdl.dll
     WriteRegStr HKLM "${REGKEY}\Components" Main 1
 SectionEnd
 
@@ -316,7 +316,6 @@ Section /o -un.Main UNSEC0000
     RmDir /r /REBOOTOK "$INSTDIR\BGAnimations\yellow flash"
     RmDir /r /REBOOTOK $INSTDIR\BGAnimations
 
-    ; fuck anyone who adds BGCharacters to ITG
     RmDir /r /REBOOTOK $INSTDIR\Characters
     
     ; Data/ dir is not getting touched
@@ -376,7 +375,7 @@ Function .onInit
     StrCpy $R1 "$R0"
     GoTo uninstask
     ReadRegStr $R0 HKLM \
-    "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenITG Beta 1" \
+    "Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenITG" \
         "UninstallString"
     StrCmp $R0 "" +3
     StrCpy $R1 "$R0"
@@ -385,7 +384,7 @@ Function .onInit
 
 uninstask:
     MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION \
-    "A copy of OpenITG Beta 1 is already installed. $\n$\nClick `OK` to remove the \
+    "A copy of OpenITG is already installed. $\n$\nClick `OK` to remove the \
         previous version or `Cancel` to cancel this upgrade." \
         IDOK uninst
     Abort

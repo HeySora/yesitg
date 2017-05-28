@@ -1,3 +1,4 @@
+AUTOMAKE_OPTIONS = subdir-objects
 bin_PROGRAMS = openitg
 TESTS = 
 tests: $(TESTS)
@@ -5,40 +6,46 @@ if BUILD_TESTS
 noinst_PROGRAMS = $(TESTS)
 endif
 
-AM_LDFLAGS =
-AM_CXXFLAGS = 
-AM_CFLAGS = 
+AM_LDFLAGS = $(LDFLAGS)
+AM_CXXFLAGS = $(CXXFLAGS) -O0 -g3
+AM_CFLAGS = $(CFLAGS)
 
 # Relax inlining; the default of 600 takes way too long to compile and
 # generates enormous output.
 AM_CXXFLAGS += -finline-limit=300
 
-AM_CXXFLAGS += $(XCFLAGS)
+AM_CXXFLAGS += $(XCFLAGS) -I$(srcdir)/libtomcrypt/src/headers -I$(srcdir)/libtommath -I$(srcdir)/arch/COM
 
 if !ITG_ARCADE
-LIBS += -lpthread -Wl,-Bstatic $(LUA_LIBS) -Wl,-Bdynamic 
+LIBS += -lpthread $(LUA_LIBS)
 else
 LIBS += -nodefaultlibs -Wl,-Bstatic -lstdc++ $(LUA_LIBS) -lXrandr -lXrender -lmad -lgcc -lgcc_eh -Wl,-Bdynamic -lpthread -lusb -lc
 endif
 
-.PHONY: build_version
+if !HAVE_LIBRESAMPLE
+all: $(srcdir)/libresample/libresample.a $(srcdir)/libtomcrypt/libtomcrypt.a $(srcdir)/libtommath/libtommath.a
 
-all: build_version
+clean-local: clean_libresample clean_libtomcrypt clean_libtommath
 
-build_version: $(srcdir)/libresample/libresample.a $(srcdir)/crypto561/libcryptopp.a
-	$(CC) -O2 archutils/Unix/verinc.c -o archutils/Unix/verinc
-	chmod +x archutils/Unix/verinc
-	archutils/Unix/verinc `svnversion`
-	$(CXX) -c verstub.cpp
+clean_libresample:
+	cd libresample && $(MAKE) clean
 
-verstub.cpp:
-	$(MAKE) build_version
+clean_libtomcrypt:
+	cd libtomcrypt && $(MAKE) clean
+clean_libtommath:
+	cd libtommath && $(MAKE) clean
 
 $(srcdir)/libresample/libresample.a:
 	cd $(srcdir)/libresample && autoconf && sh ./configure && make
+else
+all: $(srcdir)/libtomcrypt/libtomcrypt.a $(srcdir)/libtommath/libtommath.a
+endif
 
-$(srcdir)/crypto561/libcryptopp.a:
-	cd $(srcdir)/crypto561 && make -f GNUmakefile
+$(srcdir)/libtomcrypt/libtomcrypt.a: $(srcdir)/libtommath/libtommath.a
+	cd $(srcdir)/libtomcrypt && CFLAGS="$(CFLAGS) -I$(srcdir)/../libtommath" $(MAKE)
+
+$(srcdir)/libtommath/libtommath.a:
+	cd $(srcdir)/libtommath && $(MAKE)
 
 Screens = \
 Screen.cpp Screen.h \
@@ -132,15 +139,18 @@ StepMania = StdString.h \
 LoadingWindow = arch/LoadingWindow/LoadingWindow.cpp arch/LoadingWindow/LoadingWindow.h \
 		arch/LoadingWindow/LoadingWindow_Null.h
 
+USBDriver = arch/USB/USBDriver_Impl.cpp arch/USB/USBDriver_Impl.h
 
+# if HAVE_LIBUSB
 LIBS += -lusb
-#Make sure any dependencies on these data structure are wrapped.
-DataStructures += io/USBDriver.cpp io/USBDriver.h \
-		  io/PIUIO.cpp io/PIUIO.h \
-		  io/ITGIO.cpp io/ITGIO.h \
-		  io/PacDrive.cpp io/PacDrive.h \
-		  io/G15.cpp io/G15.h \
-		  io/USBDevice.h
+
+USBIO = io/USBDriver.cpp io/USBDriver.h io/PIUIO.cpp io/PIUIO.h io/ITGIO.cpp \
+	io/ITGIO.h io/PacDrive.cpp io/PacDrive.h io/G15.cpp io/G15.h \
+	io/USBDevice.h io/MiniMaid.cpp io/MiniMaid.h io/P3IO.cpp io/P3IO.h
+
+DataStructures += $(USBIO)
+USBDriver += arch/USB/USBDriver_Impl_Libusb.cpp arch/USB/USBDriver_Impl_Libusb.h
+# endif
 
 # these both use the same .h file
 if LINUX
@@ -187,23 +197,36 @@ InputHandler += arch/InputHandler/InputHandler_PIUIO.h \
 		arch/InputHandler/InputHandler_Iow.cpp \
 		arch/InputHandler/InputHandler_MK3.h \
 		arch/InputHandler/InputHandler_MK3.cpp \
-		arch/InputHandler/InputHandler_MK3Helper.h
-
-
+		arch/InputHandler/InputHandler_MK3Helper.h \
+		arch/InputHandler/InputHandler_MiniMaid.h \
+		arch/InputHandler/InputHandler_MiniMaid.cpp \
+		arch/InputHandler/InputHandler_P3IO.h \
+		arch/InputHandler/InputHandler_P3IO.cpp
 
 MovieTexture = arch/MovieTexture/MovieTexture.cpp arch/MovieTexture/MovieTexture.h \
-		arch/MovieTexture/MovieTexture_Null.cpp arch/MovieTexture/MovieTexture_Null.h \
-		arch/MovieTexture/MovieTexture_FFMpeg.cpp arch/MovieTexture/MovieTexture_FFMpeg.h 
+		arch/MovieTexture/MovieTexture_Null.cpp arch/MovieTexture/MovieTexture_Null.h
+
+if HAVE_FFMPEG
+MovieTexture += arch/MovieTexture/MovieTexture_FFMpeg.cpp arch/MovieTexture/MovieTexture_FFMpeg.h \
+		arch/MovieTexture/FFMpeg_Helper_Common.h
+
+if HAVE_LEGACY_FFMPEG
+MovieTexture += arch/MovieTexture/FFMpeg_Helper_Legacy.cpp arch/MovieTexture/FFMpeg_Helper_Legacy.h
+else
+MovieTexture += arch/MovieTexture/FFMpeg_Helper.cpp arch/MovieTexture/FFMpeg_Helper.h
+endif
+endif
 
 ####		arch/MovieTexture/MovieTexture_Generic.cpp arch/MovieTexture/MovieTexture_Generic.h
 
 Lights = arch/Lights/LightsDriver.cpp arch/Lights/LightsDriver.h \
 		arch/Lights/LightsDriver_SystemMessage.cpp arch/Lights/LightsDriver_SystemMessage.h \
+		arch/Lights/LightsDriver_ActorMessage.cpp arch/Lights/LightsDriver_ActorMessage.h \
 		arch/Lights/LightsDriver_External.cpp arch/Lights/LightsDriver_External.h \
-		arch/Lights/LightsDriver_Dynamic.cpp arch/Lights/LightsDriver_Dynamic.h \
-		arch/Lights/LightsDriver_Dynamic_Unix.cpp arch/Lights/LightsDriver_Dynamic_Unix.h \
 		arch/Lights/LightsDriver_PacDrive.cpp arch/Lights/LightsDriver_PacDrive.h \
-		arch/Lights/LightsDriver_G15.cpp arch/Lights/LightsDriver_G15.h
+		arch/Lights/LightsDriver_G15.cpp arch/Lights/LightsDriver_G15.h \
+		arch/Lights/LightsDriver_EXTIO.cpp arch/Lights/LightsDriver_EXTIO.h \
+		arch/Lights/LightsDriver_Satellite.cpp arch/Lights/LightsDriver_Satellite.h
 
 MemoryCard = arch/MemoryCard/MemoryCardDriver.cpp arch/MemoryCard/MemoryCardDriver.h
 LowLevelWindow = arch/LowLevelWindow/LowLevelWindow.cpp arch/LowLevelWindow/LowLevelWindow.h
@@ -230,7 +253,7 @@ if HAVE_X11
 InputHandler += arch/InputHandler/InputHandler_X11.cpp arch/InputHandler/InputHandler_X11.h
 LowLevelWindow += arch/LowLevelWindow/LowLevelWindow_X11.cpp arch/LowLevelWindow/LowLevelWindow_X11.h
 LowLevelWindow += archutils/Unix/X11Helper.cpp archutils/Unix/X11Helper.h
-LIBS += -lXrandr
+LIBS += -lX11 -lXext -lXrandr
 endif
 
 # Platform-specific drivers:
@@ -263,8 +286,17 @@ InputHandler +=	arch/InputHandler/InputHandler_Linux_Joystick.h arch/InputHandle
 endif
 
 Arch = $(LoadingWindow) $(Sound) $(ArchHooks) $(InputHandler) $(MovieTexture) \
-	   $(Lights) $(MemoryCard) $(LowLevelWindow) $(ArchUtils) $(Dialog) $(Threads) \
-	   arch/arch_default.h arch/arch_platform.h arch/RageDriver.cpp arch/RageDriver.h
+	   $(Lights) $(MemoryCard) $(LowLevelWindow) $(ArchUtils) $(Dialog) $(Threads) $(USBDriver) \
+	   arch/arch_default.h arch/arch_platform.h arch/RageDriver.cpp arch/RageDriver.h \
+	   arch/ACIO/ACIO.h arch/ACIO/ACIO.cpp arch/COM/serial.h arch/COM/serial.cc arch/COM/v8stdint.h
+
+if UNIX
+Arch += arch/COM/impl/unix.h arch/COM/impl/unix.cc arch/COM/impl/list_ports/list_ports_linux.cc
+else
+Arch += arch/COM/impl/win.h arch/COM/impl/win.cc arch/COM/impl/list_ports/list_ports_win.cc
+endif
+
+	   	   
 
 RageSoundFileReaders = RageSoundReader_WAV.cpp RageSoundReader_WAV.h 
 
@@ -318,7 +350,9 @@ ScoreDisplayLifeTime.cpp ScoreDisplayLifeTime.h \
 ScoreDisplayNormal.cpp ScoreDisplayNormal.h ScoreDisplayOni.cpp ScoreDisplayOni.h \
 ScoreDisplayPercentage.cpp ScoreDisplayPercentage.h ScoreDisplayRave.cpp ScoreDisplayRave.h
 
-PCRE = pcre/chartables.c pcre/get.c pcre/internal.h pcre/maketables.c pcre/pcre.c pcre/pcre.h pcre/study.c
+PCRE = pcre/get.c pcre/internal.h pcre/maketables.c pcre/pcre.c pcre/pcre.h pcre/study.c
+
+Timer = timer/Timer.cpp timer/Timer.h
 
 RageFile = \
 RageFileBasic.cpp RageFileBasic.h \
@@ -368,7 +402,8 @@ AutoActor.cpp AutoActor.h \
 BitmapText.cpp BitmapText.h Model.cpp Model.h \
 ModelManager.cpp ModelManager.h ModelTypes.cpp ModelTypes.h \
 Quad.cpp Quad.h \
-RollingNumbers.cpp RollingNumbers.h Sprite.cpp Sprite.h
+RollingNumbers.cpp RollingNumbers.h Sprite.cpp Sprite.h \
+Window.cpp Window.h
 
 GlobalSingletons = \
 AnnouncerManager.cpp AnnouncerManager.h Bookkeeper.cpp Bookkeeper.h CryptManager.cpp CryptManager.h \
@@ -384,7 +419,8 @@ ScreenManager.h SongManager.cpp SongManager.h \
 StatsManager.cpp StatsManager.h \
 ThemeManager.cpp ThemeManager.h \
 UnlockManager.cpp UnlockManager.h \
-UserPackManager.cpp UserPackManager.h
+UserPackManager.cpp UserPackManager.h \
+ProductInfo.cpp ProductInfo.h
 
 if !WITHOUT_NETWORKING
 # Compile NetworkSyncManager even if networking is disabled; it'll stub itself.
@@ -406,24 +442,6 @@ crypto/CryptPrime.cpp crypto/CryptPrime.h crypto/CryptRSA.cpp crypto/CryptRSA.h 
 crypto/CryptRand.cpp crypto/CryptRand.h crypto/CryptSH512.cpp crypto/CryptSH512.h \
 crypto/CryptSHA.cpp crypto/CryptSHA.h
 
-#crypto561/cpu.cpp crypto561/cpu.h \
-#crypto561/secblock.h crypto561/integer.cpp crypto561/integer.h \
-#crypto561/simple.cpp crypto561/simple.h \
-#crypto561/algparam.cpp crypto561/algparam.h \
-#crypto561/misc.cpp crypto561/misc.h \
-#crypto561/algebra.cpp crypto561/algebra.h \
-#crypto561/filters.cpp crypto561/filters.h \
-#crypto561/pkcspad.cpp crypto561/pkcspad.h \
-#crypto561/cryptlib.cpp crypto561/cryptlib.h \
-#crypto561/nbtheory.cpp crypto561/nbtheory.h \
-#crypto561/sha.cpp crypto561/sha.h \
-#crypto561/pssr.cpp crypto561/pssr.h \
-#crypto561/pubkey.cpp crypto561/pubkey.h \
-#crypto561/rsa.cpp crypto561/rsa.h \
-#crypto561/osrng.cpp crypto561/osrng.h \
-#crypto561/queue.cpp crypto561/queue.h \
-#crypto561/asn.cpp crypto561/asn.h
-
 cryptopp = \
 CryptHelpers.cpp CryptHelpers.h
 
@@ -441,24 +459,31 @@ main_SOURCES = $(Screens) \
 		$(ibutton) \
 		$(aes) \
 		$(crypto) \
-		$(cryptopp)
+		$(cryptopp) \
+		$(Timer)
 
 main_LDADD = \
 		  $(AUDIO_LIBS) \
 		  $(SDL_LIBS) \
 		  $(XLIBS) \
-		  $(srcdir)/libresample/libresample.a \
-		  $(srcdir)/crypto561/libcryptopp.a
+		  $(srcdir)/libtomcrypt/libtomcrypt.a \
+		  $(srcdir)/libtommath/libtommath.a \
+		  -lrt 
+# -lrt ^^ is for Timer.h's <time.h>
 
-nodist_openitg_SOURCES = verstub.cpp
 openitg_SOURCES = $(main_SOURCES)
-openitg_LDADD = $(main_LDADD) \
-	$(srcdir)/ffmpeg/lib/libavformat.a $(srcdir)/ffmpeg/lib/libavcodec.a
+
+if !HAVE_LIBRESAMPLE
+main_LDADD += $(srcdir)/libresample/libresample.a
+endif
+
+openitg_LDADD = $(main_LDADD)
 
 if HAVE_GTK
 bin_PROGRAMS += GtkModule.so
 GtkModule_so_LDFLAGS = -rdynamic -shared
 GtkModule_so_CPPFLAGS = $(GTK_CFLAGS) -fPIC
+GtkModule_so_CXXFLAGS = -Wno-write-strings
 GtkModule_so_LDADD = $(GTK_LIBS)
 GtkModule_so_SOURCES = arch/LoadingWindow/LoadingWindow_GtkModule.cpp
 endif
@@ -467,6 +492,7 @@ all_test_SOURCES = \
 		$(ArchUtils) \
 		$(PCRE) \
 		$(RageFile) \
+		$(Timer) \
 		$(ArchHooks) \
 		$(Threads) \
 		$(Dialog) \
@@ -500,8 +526,11 @@ test_audio_readers_SOURCES = \
 		RageSoundResampler.cpp RageSoundResampler.h
 
 test_audio_readers_LDADD = \
-		$(AUDIO_LIBS) \
-		$(srcdir)/libresample/libresample.a
+		$(AUDIO_LIBS)
+
+if !HAVE_LIBRESAMPLE
+test_audio_readers_LDADD += $(srcdir)/libresample/libresample.a
+endif
 
 TESTS += test_file_readers
 test_file_readers_SOURCES = \
@@ -514,7 +543,8 @@ test_file_errors_SOURCES = \
 		tests/test_file_errors.cpp \
 		MsdFile.cpp MsdFile.h \
 		XmlFile.cpp XmlFile.h \
-		$(srcdir)/crypto561/libcryptopp.a \
+		$(srcdir)/libtomcrypt/libtomcrypt.a \
+		$(srcdir)/libtommath/libtommath.a \
 		CryptManager.cpp CryptManager.h $(cryptopp) $(crypto)
 
 TESTS += test_timing_data
@@ -538,4 +568,5 @@ test_threads_SOURCES = \
 		$(all_test_SOURCES) \
 		tests/test_threads.cpp
 
-INCLUDES = $(LUA_CFLAGS) $(SDL_CFLAGS)
+AM_CPPFLAGS = $(LUA_CFLAGS) $(SDL_CFLAGS)
+

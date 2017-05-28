@@ -1,11 +1,5 @@
 #include "global.h"
 #include "RageLog.h"
-#include "StepMania.h"
-#include "RageSoundManager.h"
-#include "GameSoundManager.h"
-#include "SongManager.h"
-#include "ThemeManager.h"
-#include "ScreenManager.h"
 #include "GameManager.h"
 #include "GameState.h"
 #include "Style.h"
@@ -65,6 +59,7 @@ void ScreenDemonstration::Init()
 
 	if( GAMESTATE->m_pCurSong == NULL )	// we didn't find a song.
 	{
+		LOG->Info("ScreenDemonstration: Couldn't find a song. Aborting demonstration.");
 		HandleScreenMessage( SM_GoToNextScreen );	// Abort demonstration.
 		return;
 	}

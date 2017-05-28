@@ -24,7 +24,6 @@
 
 #include "RageSurface.h"
 #include "RageSurfaceUtils.h"
-#include "PrefsManager.h" // XXX
 #include "ScreenDimensions.h" // XXX
 
 /* Windows's broken gl.h defines GL_EXT_paletted_texture incompletely: */
@@ -41,15 +40,9 @@
 #include "RageDisplay.h"
 #include "RageDisplay_OGL.h"
 #include "RageDisplay_OGL_Extensions.h"
-#include "RageUtil.h"
 #include "RageLog.h"
-#include "RageTimer.h"
-#include "RageException.h"
-#include "RageTexture.h"
 #include "RageTextureManager.h"
 #include "RageMath.h"
-#include "RageTypes.h"
-#include "RageUtil.h"
 
 #include "arch/LowLevelWindow/LowLevelWindow.h"
 
@@ -85,8 +78,6 @@ const GLenum RageSpriteVertexFormat = GL_T2F_C4F_N3F_V3F;
 
 /* If we support texture matrix scaling, a handle to the vertex program: */
 static GLhandleARB g_bTextureMatrixShader = 0;
-
-static bool g_ShaderCompiled = false;
 
 LowLevelWindow *wind;
 
@@ -675,7 +666,7 @@ void RageDisplay_OGL::ResolutionChanged()
 // need to be reloaded.
 CString RageDisplay_OGL::TryVideoMode( VideoModeParams p, bool &bNewDeviceOut )
 {
-//	LOG->Trace( "RageDisplay_OGL::SetVideoMode( %d, %d, %d, %d, %d, %d )", windowed, width, height, bpp, rate, vsync );
+//	LOG->Trace( "RageDisplay_OGL::TryVideoMode( { .windowed=%d, .width=%d, .height=%d, .bpp=%d, .rate=%d, .vsync=%d )", p.windowed, p.width, p.height, p.bpp, p.rate, p.vsync );
 	CString err;
 	err = wind->TryVideoMode( p, bNewDeviceOut );
 	if( err != "" )
@@ -771,7 +762,7 @@ RageDisplay::VideoModeParams RageDisplay_OGL::GetVideoModeParams() const { retur
 
 static void SetupVertices( const RageSpriteVertex v[], int iNumVerts )
 {
-	static float *Vertex, *Texture, *Normal;	
+	static float *Vertex, *Texture, *Normal;
 	static GLubyte *Color;
 	static int Size = 0;
 	if(iNumVerts > Size)
@@ -1595,7 +1586,7 @@ void RageDisplay_OGL::SetCullMode( CullMode mode )
 	}
 }
 
-const RageDisplay::PixelFormatDesc *RageDisplay_OGL::GetPixelFormatDesc(PixelFormat pf) const
+const RageDisplay::PixelFormatDesc *RageDisplay_OGL::GetPixelFormatDesc(RagePixelFormat pf) const
 {
 	ASSERT( pf < NUM_PIX_FORMATS );
 	return &PIXEL_FORMAT_DESC[pf];
@@ -1612,9 +1603,9 @@ void RageDisplay_OGL::DeleteTexture( unsigned uTexHandle )
 }
 
 
-RageDisplay::PixelFormat RageDisplay_OGL::GetImgPixelFormat( RageSurface* &img, bool &FreeImg, int width, int height, bool bPalettedTexture )
+RageDisplay::RagePixelFormat RageDisplay_OGL::GetImgPixelFormat( RageSurface* &img, bool &FreeImg, int width, int height, bool bPalettedTexture )
 {
-	PixelFormat pixfmt = FindPixelFormat( img->format->BitsPerPixel, img->format->Rmask, img->format->Gmask, img->format->Bmask, img->format->Amask );
+	RagePixelFormat pixfmt = FindPixelFormat( img->format->BitsPerPixel, img->format->Rmask, img->format->Gmask, img->format->Bmask, img->format->Amask );
 	
 	/* If img is paletted, we're setting up a non-paletted texture, and color indexes
 	 * are too small, depalettize. */
@@ -1679,7 +1670,7 @@ void SetPixelMapForSurface( int glImageFormat, int glTexFormat, const RageSurfac
 }
 
 unsigned RageDisplay_OGL::CreateTexture( 
-	PixelFormat pixfmt,
+	RagePixelFormat pixfmt,
 	RageSurface* img,
 	bool bGenerateMipMaps )
 {
@@ -1689,7 +1680,7 @@ unsigned RageDisplay_OGL::CreateTexture(
 
 	/* Find the pixel format of the image we've been given. */
 	bool FreeImg;
-	PixelFormat imgpixfmt = GetImgPixelFormat( img, FreeImg, img->w, img->h, pixfmt == FMT_PAL );
+	RagePixelFormat imgpixfmt = GetImgPixelFormat( img, FreeImg, img->w, img->h, pixfmt == FMT_PAL );
 
 	GLenum glTexFormat = GL_PIXFMT_INFO[pixfmt].internalfmt;
 	GLenum glImageFormat = GL_PIXFMT_INFO[imgpixfmt].format;
@@ -1842,7 +1833,7 @@ void RageDisplay_OGL::UpdateTexture(
 	glBindTexture( GL_TEXTURE_2D, uTexHandle );
 
 	bool FreeImg;
-	PixelFormat pixfmt = GetImgPixelFormat( img, FreeImg, width, height, false );
+	RagePixelFormat pixfmt = GetImgPixelFormat( img, FreeImg, width, height, false );
 
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, img->pitch / img->format->BytesPerPixel);
 
@@ -1909,7 +1900,7 @@ void RageDisplay_OGL::SetAlphaTest( bool b )
  * Another case of this is incomplete packed pixels support.  Some implementations
  * neglect GL_UNSIGNED_SHORT_*_REV. 
  */
-bool RageDisplay_OGL::SupportsSurfaceFormat( PixelFormat pixfmt )
+bool RageDisplay_OGL::SupportsSurfaceFormat( RagePixelFormat pixfmt )
 {
 	switch( GL_PIXFMT_INFO[pixfmt].type )
 	{
@@ -1921,7 +1912,7 @@ bool RageDisplay_OGL::SupportsSurfaceFormat( PixelFormat pixfmt )
 }
 
 
-bool RageDisplay_OGL::SupportsTextureFormat( PixelFormat pixfmt, bool realtime )
+bool RageDisplay_OGL::SupportsTextureFormat( RagePixelFormat pixfmt, bool realtime )
 {
 	/* If we support a pixfmt for texture formats but not for surface formats, then
 	 * we'll have to convert the texture to a supported surface format before uploading.

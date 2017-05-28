@@ -1,3 +1,66 @@
+OpenITG, 0.9 (in development)
+-------------------------------------
+
+-Simply love compatibility improved.
+-Tons of crashes eliminated.
+-Multiple bugs fixed.
+-Arcade: Added USB 2.0 support.
+    Improves polling rate which means more accurate fantastics.
+    Transfer rate from USB memory cards is ~5x faster.
+-Rate mods are no longer reset between songs.
+    Main motivation for this is ITG2 and SM 3.95 compatibility (they don’t reset). PR #53.
+-Linux home releases now write user data to "~/.openitg".
+-For arcade builds /itgdata is now only remounted once during startup.
+    /itgdata has to be remounted by openitg to make sure the partition is writeable.
+    Previously it was temporarily remounted as writeable during write operations
+    which caused problems in some situations.
+-Unmount logic for memory cards have been improved to prevent device name leaks. PR #71.
+-It’s now possible to switch themes in the options menu without a crash. PR #50.
+-Subtractive scoring calculations are now correct.
+-The reload songs option no longer crashes the game. PR #57.
+-The green 1 excellent flag at evaluation has been replaced with the intended orange flag.
+    This was an ancient ITG2 bug.
+-Build chain improvements
+    It should now be a little easier to build and contribute to the project.
+    Binary packages are now built automatically using docker.
+
+Changes in this release were contributed by augustg and infamouspat.
+
+Note that official releases will be signed by our private key but anyone could
+generate their own key and make their own releases if they wanted to.
+
+For detailed instructions on checking out the code, contributing, or making
+release, see: README or https://github.com/openitg/openitg/wiki
+
+OpenITG, beta 3 (February 7th, 2013 - never officially released)
+-------------------------------------
+
+-Accepted patches to improve building on 64-bit and more modern Linux (thanks, hifi!)
+-Fixed problem where USB cards sounds don't occur if attract sound is set to none.
+-Fixed bug #15 where usb cards gradually become slower and slower until the machine is rebooted.
+-Fixed bug #13 so that builds label themselves with a version in a post-svn world.
+-Fixed bug #20 where UserPacks screen does not calculate disk space correctly.
+-Fixed bug #17 where Timing Window ruins screenshots
+-The "Timing Window" modifier
+    Added to let you change the judgement window dynamically - but making it
+    easier will disqualify you for ranking.
+-Disqualified Notice
+    When disqualified for ranking, the score will show as white.
+-Developer Improvements - Github
+    The source code now lives in github and is easier to check out and build.
+-Release Improvements
+    Home Releases are easier so you could make a release with your own changes
+    if you wanted.  Arcade Releases now build in a chroot so any modern Linux
+    can easily create them.
+
+Changes in this release were contributed by the entire team, vyhd, infamouspat, and cmyers.
+
+Note that official releases will be signed by our private key but anyone could
+generate their own key and make their own releases if they wanted to.
+
+For detailed instructions on checking out the code, contributing, or making
+release, see: README or https://github.com/openitg/openitg/wiki
+
 OpenITG, beta 2 (August 9th, 2009)
 ----------------------------------
 
@@ -435,3 +498,5 @@ OpenITG, alpha 1 (December 2nd, 2007)
     SONGMAN->LoadPlayerSongs()    - loads songs from a player's profile
     (RageUtil) CopyWithProgress() - copy a file while sending progress
 				    (fPercent) to a function pointer
+
+vi: expandtab sw=4 ts=4

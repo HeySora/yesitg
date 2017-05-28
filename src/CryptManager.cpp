@@ -1,12 +1,10 @@
 #include "global.h"
 #include "CryptManager.h"
-#include "RageUtil.h"
 #include "RageLog.h"
 #include "PrefsManager.h"
 #include "RageFileManager.h"
 #include "crypto/CryptMD5.h"
 
-#include "arch/arch_platform.h" // hack: HAVE_ stuff should not be defined by arch
 
 CryptManager*	CRYPTMAN	= NULL;	// global and accessable from anywhere in our program
 
@@ -14,24 +12,6 @@ static const CString PRIVATE_KEY_PATH = "Data/private.rsa";
 static const CString PUBLIC_KEY_PATH = "Data/public.rsa";
 static const CString PATCH_KEY_PATH = "Data/Patch.rsa";
 static const CString ALTERNATE_PUBLIC_KEY_DIR = "Data/keys/";
-
-#if !defined(HAVE_CRYPTOPP)
-CryptManager::CryptManager() { }
-CryptManager::~CryptManager() { }
-void CryptManager::GenerateRSAKey( unsigned int keyLength, CString privFilename, CString pubFilename, CString seed ) { }
-void CryptManager::SignFileToFile( CString sPath, CString sSignatureFile ) { }
-bool CryptManager::VerifyFileWithFile( CString sPath, CString sSignatureFile, CString sPublicKeyFile ) { return true; }
-bool CryptManager::VerifyFileWithFile( CString sPath, CString sSignatureFile )
-{
-	return true;
-}
-
-bool CryptManager::Verify( CString sPath, CString sSignature )
-{
-	return true;
-}
-
-#else
 
 // crypt headers
 #include "CryptHelpers.h"
@@ -52,6 +32,7 @@ CryptManager::CryptManager()
 			FlushDirCache();
 		}
 	}
+	CryptHelpers::Init();
 }
 
 CryptManager::~CryptManager() {}
@@ -217,7 +198,6 @@ bool CryptManager::Verify( CString sPath, CString sSignature )
 
 	return true;
 }
-#endif
 
 static CString BinaryToHex( const unsigned char *string, int iNumBytes )
 {

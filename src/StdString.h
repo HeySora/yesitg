@@ -81,6 +81,10 @@
 	#pragma warning (disable : 4127) // Conditional expression is constant
 	#pragma warning (disable : 4097) // typedef name used as synonym for class name
 	#pragma warning (disable : 4512) // assignment operator could not be generated
+
+	// inline specifier cannot be used when a friend 
+	// declaration refers to a specialization of a function template
+	#pragma warning (disable : 4396)
 #endif
 
 #ifndef STDSTRING_H
@@ -105,6 +109,7 @@ typedef char*			PSTR;
 #include <cstdlib>
 #include <cstdarg>
 #include <cstring>
+#include <vector>
 
 // a very shorthand way of applying the fix for KB problem Q172398
 // (basic_string assignment bug)
@@ -642,7 +647,7 @@ public:
 	{
 		// Range check the count.
 
-		nCount = max(0, min(nCount, static_cast<int>(this->size())));
+		nCount = std::max(0, std::min(nCount, static_cast<int>(this->size())));
 		return this->substr(0, static_cast<MYSIZE>(nCount)); 
 	}
 
@@ -685,7 +690,7 @@ public:
 	{
 		// Range check the count.
 
-		nCount = max(0, min(nCount, static_cast<int>(this->size())));
+		nCount = std::max(0, std::min(nCount, static_cast<int>(this->size())));
 		return this->substr(this->size()-static_cast<MYSIZE>(nCount));
 	}
 
@@ -780,6 +785,12 @@ struct StdStringEqualsNoCase
 #if defined(_MSC_VER) && (_MSC_VER > 1100)
 	#pragma warning (pop)
 #endif
+
+/* Use CStdString: */
+typedef StdString::CStdString CString;
+typedef std::vector<CString> CStringArray;
+
+typedef const CString& CCStringRef;
 
 #endif	// #ifndef STDSTRING_H
 

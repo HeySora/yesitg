@@ -1,15 +1,9 @@
 #include "global.h"
 #include "PrefsManager.h"
 #include "IniFile.h"
-#include "GameState.h"
-#include "RageDisplay.h"
-#include "RageUtil.h"
-#include "arch/arch_default.h"
-#include "RageSoundReader_Resample.h" /* for ResampleQuality */
-#include "RageFile.h"
+#include "RageDisplay.h" /* for REFRESH_DEFAULT */
 #include "ProductInfo.h"
 #include "Foreach.h"
-#include "Preference.h"
 #include "RageLog.h"
 
 #define DEFAULTS_INI_PATH	"Data/Defaults.ini"	// these can be overridden
@@ -199,13 +193,8 @@ PrefsManager::PrefsManager() :
 	m_bCustomSongs			( "SongEdits", false ),
 	m_bCustomSongPreviews		( "CustomSongPreviews", false ),
 
-	m_iCustomsLoadMax		( "CustomsLoadMax", 50 ),
 	m_fCustomsLoadTimeout	( "CustomsLoadTimeout", 5.0f ),
-
 	m_iCustomMaxSeconds	( "CustomMaxSeconds", 120 ),
-	m_iCustomMaxSizeMB	( "CustomMaxSizeMB", 5 ),
-	m_iCustomMaxStepsSizeKB	( "CustomMaxStepSizeKB", 100 ),
-	m_bAllowExtraPlayerOptions ( "AllowExtraPlayerOptions", false ),
 
 	m_bCustomCourses	( "CourseEdits", false ),
 
@@ -238,7 +227,7 @@ PrefsManager::PrefsManager() :
 	m_iEndlessBreakLength			( "EndlessBreakLength",			5 ),
 	m_bDisableScreenSaver			( "DisableScreenSaver",			true ),
 	m_sLanguage						( "Language",					"" ),	// ThemeManager will deal with this invalid language
-	m_sMemoryCardProfileSubdir		( "MemoryCardProfileSubdir",	PRODUCT_NAME ),
+	m_sMemoryCardProfileSubdir		( "MemoryCardProfileSubdir",	ProductInfo::GetName()),
 	m_iProductID					( "ProductID",					1 ),
 	m_sDefaultLocalProfileIDP1		( "DefaultLocalProfileIDP1",	"" ),
 	m_sDefaultLocalProfileIDP2		( "DefaultLocalProfileIDP2",	"" ),
@@ -306,6 +295,7 @@ PrefsManager::PrefsManager() :
 	m_bLogCheckpoints				( "LogCheckpoints",				false ),
 
 	/* Game-specific prefs: */
+	m_sTheme						( "Theme",						"default" ),
 	m_sDefaultModifiers				( "DefaultModifiers",			"" )
 
 #if defined(XBOX)

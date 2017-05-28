@@ -1,20 +1,13 @@
 #include "global.h"
 #include "RageLog.h"
 #include "MemoryCardManager.h"		// for HasPatch
-#include "ProfileManager.h"		// for HasPatch
-#include "GameConstantsAndTypes.h"	// for memory card state
 #include "ScreenArcadePatch.h"
-#include "ScreenMessage.h"	// for AutoScreenMessage
-#include "ActorUtil.h"		// for SET_XY_AND_ON_COMMAND
 #include "DiagnosticsUtil.h"	// for GetRevision()
-#include "RageUtil.h"		// for join
 #include "HelpDisplay.h"	// so we can set the help text
 #include "CryptHelpers.h"	// to verify signature
 #include "XmlFile.h"		// for XML data handling
 
 // manual file handling
-#include "RageFileManager.h"
-#include "RageFile.h"
 #include "RageFileDriverTimeout.h"
 #include "RageFileDriverZip.h"
 #include "RageFileDriverSlice.h"
@@ -331,13 +324,14 @@ bool ScreenArcadePatch::GetXMLData( RageFileDriverZip *fZip, CString &sGame, CSt
 	return true;
 }
 
-static void UpdateProgress( unsigned long iCurrent, unsigned long iTotal )
+bool UpdateProgress( uint64_t iCurrent, uint64_t iTotal )
 {
 	float fPercent = iCurrent / (iTotal/100);
 	CString sProgress = ssprintf( "Copying patch (%.0f%%)\n\n"
 		"Please do not remove the USB Card.", fPercent );
 
 	PATCH_TEXT( sProgress );
+	return true;
 }
 
 /* helper functions to get the actual file paths for CHMODing. */
@@ -402,9 +396,13 @@ void ScreenArcadePatch::PatchMain()
 {
 	m_State = PATCH_CHECKING;
 
-	/* set up patterns to match, in order of priority. */
+        /* NOTE: we used to look for OpenITG prefixed updates also, but the
+         * original ITG binary does not, so if we want people to be able to
+         * upgrade directly from ITG to OITG, we have to continue to use the
+         * "ITG 2 " prefix.  Sad times. */
+
+	/* set up patterns to match */
 	CStringArray vsPatterns;
-	vsPatterns.push_back( "OpenITG *.itg" );
 	vsPatterns.push_back( "ITG 2 *.itg" );
 
 	/* check to see if either player has patches */
@@ -467,7 +465,7 @@ void ScreenArcadePatch::PatchMain()
 	}
 
 	CString sError;
-	if( FileCopy( patch, *m_PatchFile, sError, &UpdateProgress) )
+	if( FileCopy( patch, *m_PatchFile, sError, NULL, UpdateProgress) )
 	{
 		STATE_TEXT( "Patch copied! Checking..." );
 		PATCH_TEXT( "" );
@@ -581,9 +579,9 @@ void ScreenArcadePatch::PatchMain()
 		RageFile fCopyTo;
 		fCopyTo.Open( TEMP_PATCH_DIR + sCleanPath, RageFile::WRITE );
 
-		if( !FileCopy(*fCopyFrom, fCopyTo) )
+		if( !FileCopy(*fCopyFrom, fCopyTo, sError) )
 		{
-			PATCH_TEXT( ssprintf("Could not copy \"%s\":\n" "%s", sCleanPath.c_str(),sError.c_str()) );
+			PATCH_TEXT( ssprintf("Could not copy \"%s\":\n" "%s", sCleanPath.c_str(), sError.c_str()) );
 
 			m_State = PATCH_ERROR;
 			SAFE_DELETE( fCopyFrom );

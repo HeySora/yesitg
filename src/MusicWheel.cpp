@@ -1,29 +1,16 @@
 #include "global.h"
 #include "MusicWheel.h"
-#include "RageUtil.h"
 #include "SongManager.h"
-#include "GameManager.h"
-#include "PrefsManager.h"
 #include "ScreenManager.h"	// for sending SM_PlayMusicSample
 #include "RageLog.h"
-#include "GameConstantsAndTypes.h"
 #include "GameState.h"
-#include "RageMath.h"
-#include "ThemeManager.h"
 #include "song.h"
-#include "Course.h"
-#include "RageDisplay.h"
-#include "RageTextureManager.h"
-#include "Banner.h"
 #include "Steps.h"
 #include "UnlockManager.h"
-#include "GameCommand.h"
 #include "ActorUtil.h"
 #include "SongUtil.h"
 #include "CourseUtil.h"
-#include "Foreach.h"
 #include "Style.h"
-#include "ThemeMetric.h"
 #include "PlayerState.h"
 
 #define NUM_WHEEL_ITEMS		((int)ceil(NUM_WHEEL_ITEMS_TO_DRAW+2))
@@ -223,6 +210,7 @@ void MusicWheel::LoadFromMetrics( CString sType )
 	RANDOM_PICKS_LOCKED_SONGS	.Load(sType,"RandomPicksLockedSongs");
 	MOST_PLAYED_SONGS_TO_SHOW	.Load(sType,"MostPlayedSongsToShow");
 	MODE_MENU_CHOICE_NAMES		.Load(sType,"ModeMenuChoiceNames");
+	SWAP_RANDOM_AND_ROULETTE	.Load(sType,"SwapRandomAndRoulette"); //Self-Explaining. Swaps Random and Roulette in the wheel. -Wanny&Kriz
 	vector<CString> vsModeChoiceNames;
 	split( MODE_MENU_CHOICE_NAMES, ",", vsModeChoiceNames );
 	CHOICE						.Load(sType,CHOICE_NAME,vsModeChoiceNames);
@@ -596,19 +584,29 @@ void MusicWheel::BuildWheelItemDatas( vector<WheelItemData> &arrayWheelItemDatas
 				}
 			}
 
-			if( so != SORT_ROULETTE )
+			if( so != SORT_ROULETTE ) 
 			{
-				if( SHOW_ROULETTE )
-					arrayWheelItemDatas.push_back( WheelItemData(TYPE_ROULETTE, NULL, "", NULL, RageColor(1,0,0,1)) );
-				/* Only add TYPE_PORTAL if there's at least one song on the list. */
+				/* Only add TYPE_PORTAL if there's at least one song on the list. */	
 				bool bFoundAnySong = false;
 				for( unsigned i=0; !bFoundAnySong && i < arrayWheelItemDatas.size(); i++ )
 					if( arrayWheelItemDatas[i].m_Type == TYPE_SONG )
 						bFoundAnySong = true;
-
-				if( SHOW_RANDOM && bFoundAnySong )
-					arrayWheelItemDatas.push_back( WheelItemData(TYPE_RANDOM, NULL, "", NULL, RageColor(1,0,0,1)) );
-
+				/* Toggle to swap Random and Roulette. */
+				if (SWAP_RANDOM_AND_ROULETTE) // Random first, like in DDR
+				{
+				
+					if( SHOW_RANDOM && bFoundAnySong )
+						arrayWheelItemDatas.push_back( WheelItemData(TYPE_RANDOM, NULL, "", NULL, RageColor(1,0,0,1)) );
+					if( SHOW_ROULETTE )
+						arrayWheelItemDatas.push_back( WheelItemData(TYPE_ROULETTE, NULL, "", NULL, RageColor(1,0,0,1)) );
+				}
+				else // Roulette first, normal SM behavior
+				{
+					if( SHOW_ROULETTE )
+						arrayWheelItemDatas.push_back( WheelItemData(TYPE_ROULETTE, NULL, "", NULL, RageColor(1,0,0,1)) );
+					if( SHOW_RANDOM && bFoundAnySong )
+						arrayWheelItemDatas.push_back( WheelItemData(TYPE_RANDOM, NULL, "", NULL, RageColor(1,0,0,1)) );
+				}
 				if( SHOW_PORTAL && bFoundAnySong )
 					arrayWheelItemDatas.push_back( WheelItemData(TYPE_PORTAL, NULL, "", NULL, RageColor(1,0,0,1)) );
 			}

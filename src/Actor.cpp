@@ -1,20 +1,12 @@
 #include "global.h"
 #include "Actor.h"
 #include "RageDisplay.h"
-#include "PrefsManager.h"
-#include "RageUtil.h"
 #include "RageMath.h"
-#include "GameConstantsAndTypes.h"
 #include "RageLog.h"
 #include "arch/Dialog/Dialog.h"
 #include "Foreach.h"
 #include "XmlFile.h"
-#include "LuaBinding.h"
-#include "Command.h"
-#include "ActorCommands.h"
 #include "ThemeManager.h"
-#include "LuaReference.h"
-#include "MessageManager.h"
 #include "LightsManager.h" // for NUM_CABINET_LIGHTS
 
 
@@ -605,9 +597,9 @@ void Actor::UpdateInternal( float fDeltaTime )
 	{
 	case spin:
 		m_current.rotation += m_fEffectDelta*m_vEffectMagnitude;
-		wrap( m_current.rotation.x, 360 );
-		wrap( m_current.rotation.y, 360 );
-		wrap( m_current.rotation.z, 360 );
+		wrap( m_current.rotation.x, 360.0f );
+		wrap( m_current.rotation.y, 360.0f );
+		wrap( m_current.rotation.z, 360.0f );
 		break;
 	}
 

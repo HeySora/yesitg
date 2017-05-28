@@ -2,9 +2,23 @@
 #include "LowLevelWindow.h"
 #include "arch/arch_default.h"
 
+LowLevelWindow *LowLevelWindow::instance;
+
 LowLevelWindow *LowLevelWindow::Create()
 {
-	return new ARCH_LOW_LEVEL_WINDOW;
+	if (LowLevelWindow::instance == NULL)
+	{
+		LowLevelWindow::instance = new ARCH_LOW_LEVEL_WINDOW;
+	}
+	return LowLevelWindow::instance;
+}
+
+namespace Blah
+{
+	LowLevelWindow *LowLevelWindow::Create()
+	{
+		return reinterpret_cast<LowLevelWindow*>(::LowLevelWindow::Create());
+	}
 }
 
 /*

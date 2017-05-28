@@ -4,222 +4,142 @@
 #include "RageUtil.h"
 #include "RageLog.h"
 
-// crypt headers
-#include <typeinfo>
-#include "crypto561/files.h"
-#include "crypto561/filters.h"
-#include "crypto561/cryptlib.h"
-#include "crypto561/sha.h"
-#include "crypto561/rsa.h"
-#include "crypto561/osrng.h"
-#if defined(_MSC_VER) && !defined(_XBOX) && _MSC_VER <= 1310
-#if defined(_DEBUG)
-#pragma comment(lib, "crypto561/cryptlib_vs2003/Win32/output/debug/cryptlib_vs2003.lib")
-#else
-#pragma comment(lib, "crypto561/cryptlib_vs2003/Win32/output/release/cryptlib_vs2003.lib")
-#endif /* defined(_DEBUG) */
-#endif /* defined(_MSC_VER) */
+// tomcrypt want to #define ENDIAN_LITTLE, which is also in our own config.h.  We're not using it in this file anyway.
+#undef ENDIAN_LITTLE
 
-using namespace CryptoPP;
+#include "libtomcrypt/src/headers/tomcrypt.h"
 
-class RageFileStore : public Store, private FilterPutSpaceHelper
+/* XXX huge hack to get stuff working */
+#if defined(WIN32)
+	#if defined(_DEBUG)
+		#pragma comment(lib, "libtomcrypt/Debug/tomcrypt.lib")
+		#pragma comment(lib, "libtommath/Debug/tommath.lib")
+	#else
+		#if defined(WITH_SSE2)
+			#pragma comment(lib, "libtomcrypt/Release-SSE2/tomcrypt.lib")
+			#pragma comment(lib, "libtommath/Release-SSE2/tommath.lib")
+		#else
+			#pragma comment(lib, "libtomcrypt/Release/tomcrypt.lib")
+			#pragma comment(lib, "libtommath/Release/tommath.lib")
+		#endif
+	#endif
+#endif
+
+static const ltc_prng_descriptor *g_PRNGDesc; // HACK: this _MIGHT_ be better off as g_SigHashDesc or something
+static const ltc_hash_descriptor *g_SHA1Desc;
+
+static int g_SHA1DescId;
+static int g_PRNGDescId;
+static prng_state g_PRNGState;
+
+#define KEY_BITLENGTH 1024
+
+void CryptHelpers::Init()
 {
-public:
-	class Err : public Exception
-	{
-	public:
-		Err(const std::string &s) : Exception(IO_ERROR, s) {}
-	};
-	class OpenErr : public Err {public: OpenErr(const std::string &filename) : Err("FileStore: error opening file for reading: " + filename) {}};
-	struct ReadErr : public Err { ReadErr( const RageFileBasic &f ); };
+	ltc_mp = ltm_desc;
+	g_PRNGDescId = register_prng( &yarrow_desc );
+	if ( g_PRNGDescId == -1 )
+		RageException::Throw( "Could not register PRNG Descriptor" );
+	g_PRNGDesc = &yarrow_desc;
+	rng_make_prng(1024, g_PRNGDescId, &g_PRNGState, NULL);
 
-	RageFileStore( RageFileBasic *pFile ); /* pFile will be deleted */
-	~RageFileStore();
-	RageFileStore( const RageFileStore &cpy );
-	RageFileStore( const char *filename )
-		{StoreInitialize(MakeParameters("InputFileName", filename));}
+	g_SHA1DescId = register_hash( &sha1_desc );
+	if ( g_SHA1DescId == -1 )
+		RageException::Throw( "Could not register SHA1 Descriptor" );
+	g_SHA1Desc = &sha1_desc;
+}
 
-	lword MaxRetrievable() const;
-	unsigned int TransferTo2(BufferedTransformation &target, lword &transferBytes, const std::string &channel=NULL_CHANNEL, bool blocking=true);
-	unsigned int CopyRangeTo2(BufferedTransformation &target, lword &begin, lword end=LWORD_MAX, const std::string &channel=NULL_CHANNEL, bool blocking=true) const;
-
-private:
-	void StoreInitialize(const NameValuePairs &parameters);
+static void PKCS8EncodePrivateKey( unsigned char *pkbuf, unsigned long bufsize, CString &sOut )
+{
 	
-	mutable RageFileBasic *m_pFile;	// mutable because reading from a file is not a const operation
-	byte *m_space;
-	int m_len;
-	bool m_waiting;
-};
-
-class RageFileSource : public SourceTemplate<RageFileStore>
-{
-public:
-	typedef FileStore::Err Err;
-	typedef FileStore::OpenErr OpenErr;
-	typedef FileStore::ReadErr ReadErr;
-
-	RageFileSource( RageFileBasic *pFile, bool pumpAll, BufferedTransformation *attachment = NULL )
-		: SourceTemplate<RageFileStore>(attachment,RageFileStore(pFile)) {SourceInitialize(pumpAll, MakeParameters("InputBinaryMode", true, false));}
-};
-
-RageFileStore::ReadErr::ReadErr( const RageFileBasic &f ):
-	Err( "RageFileStore read error: " + f.GetError() )
-{
 }
 
-RageFileStore::RageFileStore( RageFileBasic *pFile )
+/* "Decode" */
+static bool PKCS8DecodePrivateKey( const unsigned char *pkcsbuf, unsigned long bufsize, unsigned char *szOut, unsigned long &outsize )
 {
-	m_pFile = pFile;
-	m_waiting = false;
+	ltc_asn1_list *pkAlgObject;
+	der_decode_sequence_flexi(pkcsbuf, &bufsize, &pkAlgObject);
+
+#define RET_IF_NULL_THEN_ASSIGN(x ) { if ( (x) == NULL ) return false; pkAlgObject = (x); }
+	RET_IF_NULL_THEN_ASSIGN( pkAlgObject );
+	RET_IF_NULL_THEN_ASSIGN( pkAlgObject->child );
+	RET_IF_NULL_THEN_ASSIGN( pkAlgObject->next );
+	RET_IF_NULL_THEN_ASSIGN( pkAlgObject->next );
+#undef RET_IF_NULL_THEN_ASSIGN
+
+	outsize = pkAlgObject->size;
+	memcpy( szOut, pkAlgObject->data, outsize );
+	return true;
 }
 
-RageFileStore::~RageFileStore()
+static bool GetSha1ForFile( RageFileBasic &f, unsigned char *szHash )
 {
-	delete m_pFile;
-}
+	hash_state sha1e;
+	sha1_init(&sha1e);
 
-RageFileStore::RageFileStore( const RageFileStore &cpy ):
-	Store(cpy),
-	FilterPutSpaceHelper(cpy)
-{
-	if( cpy.m_pFile != NULL )
-		m_pFile = cpy.m_pFile->Copy();
-	else
-		m_pFile = NULL;
-
-	ASSERT( !cpy.m_waiting );
-	m_waiting = false;
-}
-
-
-void RageFileStore::StoreInitialize(const NameValuePairs &parameters)
-{
-	ASSERT( m_pFile != NULL );
-	m_waiting = false;
-}
-
-lword RageFileStore::MaxRetrievable() const
-{
-	if( m_pFile == NULL || m_pFile->AtEOF() || !m_pFile->GetError().empty() )
-		return 0;
-	
-	return m_pFile->GetFileSize() - m_pFile->Tell();
-}
-
-unsigned int RageFileStore::TransferTo2(BufferedTransformation &target, lword &transferBytes, const std::string &channel, bool blocking)
-{
-	if( m_pFile == NULL || m_pFile->AtEOF() || !m_pFile->GetError().empty() )
+	int origpos = f.Tell();
+	f.Seek(0);
+	unsigned char buf[4096];
+	int got = f.Read(buf, 4096);
+	if ( got == -1 )
+		return false;
+	while (got > 0)
 	{
-		transferBytes = 0;
-		return 0;
+		sha1_process(&sha1e, buf, got);
+		got = f.Read(buf, 4096);
+		if ( got == -1 )
+			return false;
 	}
-	
-	unsigned long size=transferBytes;
-	transferBytes = 0;
-	
-	if( m_waiting )
-		goto output;
-	
-	while( size && !m_pFile->AtEOF() )
-	{
-		{
-			unsigned int spaceSize = 1024;
-			m_space = HelpCreatePutSpace(target, channel, 1, (unsigned int)STDMIN(size, (unsigned long)UINT_MAX), spaceSize);
-			
-			m_len = m_pFile->Read( (char *)m_space, STDMIN(size, (unsigned long)spaceSize));
-			if( m_len == -1 )
-				throw ReadErr( *m_pFile );
-		}
-		unsigned int blockedBytes;
-output:
-		blockedBytes = target.ChannelPutModifiable2(channel, m_space, m_len, 0, blocking);
-		m_waiting = blockedBytes > 0;
-		if( m_waiting )
-			return blockedBytes;
-		size -= m_len;
-		transferBytes += m_len;
-	}
-	
-	return 0;
+	sha1_done(&sha1e, szHash);
+	f.Seek(origpos);
+	return true;
 }
 
-
-unsigned int RageFileStore::CopyRangeTo2(BufferedTransformation &target, lword &begin, lword end, const std::string &channel, bool blocking) const
+#ifdef UNUSED_CODE
+static bool GetSha1ForFile( CString &sFile, unsigned char *szHash )
 {
-	if( m_pFile == NULL || m_pFile->AtEOF() || !m_pFile->GetError().empty() )
-		return 0;
-	
-	if( begin == 0 && end == 1 )
-	{
-		int current = m_pFile->Tell();
-		byte result;
-		m_pFile->Read( &result, 1 );
-		m_pFile->Seek( current );
-		if( m_pFile->AtEOF() )
-			return 0;
-
-		unsigned int blockedBytes = target.ChannelPut( channel, byte(result), blocking );
-		begin += 1-blockedBytes;
-		return blockedBytes;
-	}
-	
-	// TODO: figure out what happens on cin
-	// (What does that mean?)
-	int current = m_pFile->Tell();
-	int newPosition = current + (streamoff)begin;
-	
-	if( newPosition >= m_pFile->GetFileSize() )
-		return 0;	// don't try to seek beyond the end of file
-
-	m_pFile->Seek( newPosition );
-	try
-	{
-		ASSERT( !m_waiting );
-		lword copyMax = end-begin;
-		unsigned int blockedBytes = const_cast<RageFileStore *>(this)->TransferTo2( target, copyMax, channel, blocking );
-		begin += copyMax;
-		if( blockedBytes )
-		{
-			const_cast<RageFileStore *>(this)->m_waiting = false;
-			return blockedBytes;
-		}
-	}
-	catch(...)
-	{
-		m_pFile->ClearError();
-		m_pFile->Seek( current );
-		throw;
-	}
-	m_pFile->ClearError();
-	m_pFile->Seek( current );
-	
-	return 0;
+	RageFile f;
+	f.Open(sFile, RageFile::READ);
+	bool bGot = GetSha1ForFile( f, szHash );
+	f.Close();
+	return bGot;
 }
+#endif
 
 bool CryptHelpers::GenerateRSAKey( unsigned int keyLength, CString sSeed, CString &sPublicKey, CString &sPrivateKey )
 {
 #ifdef _XBOX
 	return false;
 #else
-	try
+	int iRet;
+	rsa_key key;
+
+	iRet = rsa_make_key( &g_PRNGState, g_PRNGDescId, KEY_BITLENGTH/8, 65537, &key );
+	if ( iRet != CRYPT_OK )
 	{
-		NonblockingRng rng;
-
-		RSASSA_PKCS1v15_SHA_Signer priv(rng, keyLength);
-		StringSink privFile( sPrivateKey );
-		priv.DEREncode(privFile);
-		privFile.MessageEnd();
-
-		RSASSA_PKCS1v15_SHA_Verifier pub(priv);
-		StringSink pubFile( sPublicKey );
-		pub.DEREncode(pubFile);
-		pubFile.MessageEnd();
-	} catch( const CryptoPP::Exception &s ) {
-		LOG->Warn( "GenerateRSAKey failed: %s", s.what() );
+		LOG->Warn( "GenerateRSAKey error: %s", error_to_string(iRet) );
 		return false;
 	}
 
+	unsigned char buf[2048];
+	unsigned long bufsize = sizeof(buf);
+
+	iRet = rsa_export( buf, &bufsize, PK_PUBLIC, &key );
+	if ( iRet != CRYPT_OK )
+	{
+		LOG->Warn( "RSA Public Key Export error: %s", error_to_string(iRet) );
+		return false;
+	}
+	sPublicKey = CString( (const char*)buf, bufsize );
+
+	iRet = rsa_export( buf, &bufsize, PK_PRIVATE, &key );
+	if ( iRet != CRYPT_OK )
+	{
+		LOG->Warn( "RSA Private Key Export error: %s", error_to_string(iRet) );
+		return false;
+	}
+
+	PKCS8EncodePrivateKey( buf, bufsize, sPrivateKey );
 	return true;
 #endif
 }
@@ -229,51 +149,75 @@ bool CryptHelpers::SignFile( RageFileBasic &file, CString sPrivKey, CString &sSi
 #ifdef _XBOX
 	return false;
 #else
-	try {
-		StringSource privFile( sPrivKey, true );
-		RSASSA_PKCS1v15_SHA_Signer priv(privFile);
-		NonblockingRng rng;
+	unsigned char embedded_key[4096], filehash[20], sig[128];
+	unsigned long keysize = 4096, sigsize = 128;
+	int ret;
+	rsa_key key;
 
-		/* RageFileSource will delete the file we give to it, so make a copy. */
-		RageFileSource f( file.Copy(), true, new SignerFilter(rng, priv, new StringSink(sSignatureOut)) );
-	} catch( const CryptoPP::Exception &s ) {
-		LOG->Warn( "SignFileToFile failed: %s", s.what() );
+	bool bDecoded = PKCS8DecodePrivateKey((const unsigned char *)sPrivKey.data(), sPrivKey.size(), embedded_key, keysize);
+	if ( bDecoded )
+		sPrivKey.assign((const char*)embedded_key, keysize);
+
+	ret = rsa_import((const unsigned char*)sPrivKey.data(), sPrivKey.size(), &key);
+	if ( ret != CRYPT_OK )
+	{
+		LOG->Warn("Could not import private key: %s", error_to_string(ret));
 		return false;
 	}
+	bool bShaRet = GetSha1ForFile(file, filehash);
+	if ( !bShaRet )
+	{
+		LOG->Warn("Could not get SHA1 for file");
+		return false;
+	}
+	ret = rsa_sign_hash_ex( filehash, 20, sig, &sigsize, LTC_PKCS_1_V1_5, &g_PRNGState, g_PRNGDescId, g_SHA1DescId, 0, &key );
+	if ( ret != CRYPT_OK )
+	{
+		LOG->Warn("Could not sign hash file: %s", error_to_string(ret));
+		return false;
+	}
+	ASSERT( sigsize == 128 );
 
+	sSignatureOut.assign( (const char *)sig, sigsize );
 	return true;
 #endif
 }
 
 bool CryptHelpers::VerifyFile( RageFileBasic &file, CString sSignature, CString sPublicKey, CString &sError )
 {
-	try {
-		StringSource pubFile( sPublicKey, true );
-		RSASSA_PKCS1v15_SHA_Verifier pub(pubFile);
-
-		if( sSignature.size() != pub.SignatureLength() )
-		{
-			sError = ssprintf( "Invalid signature length: got %i, expected %i", sSignature.size(), pub.SignatureLength() );
-			return false;
-		}
-
-		VerifierFilter *verifierFilter = new VerifierFilter(pub);
-		verifierFilter->Put( (byte *) sSignature.data(), sSignature.size() );
-
-		/* RageFileSource will delete the file we give to it, so make a copy. */
-		RageFileSource f( file.Copy(), true, verifierFilter );
-
-		if( !verifierFilter->GetLastResult() )
-		{
-			sError = ssprintf( "Signature mismatch" );
-			return false;
-		}
-		
-		return true;
-	} catch( const CryptoPP::Exception &s ) {
-		sError = s.what();
+	unsigned char buf_hash[20];
+	rsa_key key;
+	int ret = rsa_import( (const unsigned char *)sPublicKey.data(), sPublicKey.size(), &key );
+	if ( ret != CRYPT_OK )
+	{
+		sError = ssprintf("Could not import public key: %s", error_to_string(ret));
+		LOG->Warn(sError);
 		return false;
 	}
+	bool bHashed = GetSha1ForFile( file, buf_hash );
+	if ( !bHashed )
+	{
+		sError = ssprintf("Error while SHA1 hashing file");
+		LOG->Warn(sError);
+		return false;
+	}
+	
+	int iMatch = 0;
+	ret = rsa_verify_hash_ex( (const unsigned char*)sSignature.data(), sSignature.size(),
+		buf_hash, sizeof(buf_hash), LTC_PKCS_1_V1_5, g_SHA1DescId, 0, &iMatch, &key );
+	if ( ret != CRYPT_OK )
+	{
+		sError = ssprintf("Could not verify hash: %s", error_to_string(ret));
+		LOG->Warn(sError);
+		return false;
+	}
+	if ( iMatch == 0 )
+	{
+		sError = "Signature Mismatch";
+		LOG->Warn(sError);
+		return false;
+	}
+	return true;
 }
 
 /*

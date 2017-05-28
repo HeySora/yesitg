@@ -1,17 +1,12 @@
 #include "global.h"
 #include "MemoryCardManager.h"
-#include "arch/MemoryCard/MemoryCardDriver.h"	// for UsbStorageDevice
 #include "ScreenManager.h"
 #include "ThemeManager.h"
 #include "RageLog.h"
-#include "RageFileManager.h"
-#include "RageFileDriver.h"
 #include "RageFileDriverTimeout.h"
-#include "MessageManager.h"
 #include "Foreach.h"
 #include "RageUtil_WorkerThread.h"
 #include "arch/MemoryCard/MemoryCardDriver_Null.h"
-#include "LuaManager.h"
 
 MemoryCardManager*	MEMCARDMAN = NULL;	// global and accessable from anywhere in our program
 
@@ -41,6 +36,8 @@ Preference<int> MemoryCardManager::m_iMemoryCardUsbLevel[NUM_PLAYERS] =
 	Preference<int>("MemoryCardUsbLevelP1", -1),
 	Preference<int>("MemoryCardUsbLevelP2", -1)
 };
+
+Preference<bool> MemoryCardManager::m_bUsePmount( "UsePmount", false );
 
 Preference<CString>	MemoryCardManager::m_sEditorMemoryCardOsMountPoint( "EditorMemoryCardOsMountPoint",	"" );
 
@@ -385,7 +382,10 @@ void MemoryCardManager::UpdateAssignments()
 			if( m_iMemoryCardUsbLevel[p] != -1 &&
 				m_iMemoryCardUsbLevel[p] != d->iLevel )
 				continue;       // not a match
-			
+
+			if( !m_bUsePmount && d->bUsePmount )
+				continue;       // pmount disabled
+
 			LOG->Trace( "Player %i: matched %s", p+1, d->sDevice.c_str() );
 
 			assigned_device = *d;    // save a copy
@@ -464,30 +464,27 @@ void MemoryCardManager::CheckStateChanges()
 		if( m_State[p] != state )
 		{
 			// play sound
-//			RageSoundParams params;
-//			params.m_bIsCriticalSound = true;
+			RageSoundParams params;
+			params.m_bIsCriticalSound = true;
+
 			switch( state )
 			{
 			case MEMORY_CARD_STATE_NO_CARD:
 			case MEMORY_CARD_STATE_REMOVED:
 				if( LastState == MEMORY_CARD_STATE_READY )
 				{
-//					m_soundDisconnect.Play( &params );
-					m_soundDisconnect.Play();
+					m_soundDisconnect.Play( &params );
 					MESSAGEMAN->Broadcast( (Message)(MESSAGE_CARD_REMOVED_P1+p) );
 				}
 				break;
 			case MEMORY_CARD_STATE_READY:
-//				m_soundReady.Play( &params );
-				m_soundReady.Play();
+				m_soundReady.Play( &params );
 				break;
 			case MEMORY_CARD_STATE_TOO_LATE:
-//				m_soundTooLate.Play( &params );
-//				m_soundTooLate.Play();
+				m_soundTooLate.Play( &params );
 				break;
 			case MEMORY_CARD_STATE_ERROR:
-//				m_soundError.Play( &params );
-				m_soundError.Play();
+				m_soundError.Play( &params );
 				break;
 			}
 
@@ -712,7 +709,6 @@ void MemoryCardManager::UnPauseMountingThread()
 }
 
 // lua start
-#include "LuaBinding.h"
 
 // new lua
 

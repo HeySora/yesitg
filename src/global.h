@@ -13,7 +13,7 @@
 #define __STDC_CONSTANT_MACROS // for INT64_C, etc
 
 /* Platform-specific fixes. */
-#if defined(WIN32)
+#if defined(_WIN32)
 #include "archutils/Win32/arch_setup.h"
 #elif defined(PBBUILD)
 #include "archutils/Darwin/arch_setup.h"
@@ -51,7 +51,7 @@
 #include <vector>
 
 /* And, as of GCC 4.3, climits and cstring: */
-#if defined(__GNUC__) && (__GNUC__ >= 4) && (__GNUC_MINOR__ >= 3)
+#if defined(__GNUC__) && ((__GNUC__ > 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ >= 3)))
 #include <climits>
 #include <cstring>
 #endif
@@ -128,6 +128,9 @@ void NORETURN sm_crash( const char *reason = "Internal error" );
 void ShowWarning( const char *file, int line, const char *message ); // don't pull in LOG here
 #define WARN(MESSAGE) (ShowWarning(__FILE__, __LINE__, MESSAGE))
 
+/* Use CStdString: */
+#include "StdString.h"
+
 #ifdef DEBUG
 #define DEBUG_ASSERT(x)		ASSERT(x)
 #define DEBUG_ASSERT_M(x,y)	ASSERT_M(x,y)
@@ -143,21 +146,6 @@ void ShowWarning( const char *file, int line, const char *message ); // don't pu
 #else
 #define PRINTF(a,b)
 #endif
-
-#if !defined(ALIGN)
-#if defined(__GNUC__)
-#define ALIGN(n) __attribute__((aligned(n)))
-#else
-#define ALIGN(n)
-#endif
-#endif
-
-/* Use CStdString: */
-#include "StdString.h"
-typedef StdString::CStdString CString;
-typedef vector<CString> CStringArray;
-
-typedef const CString& CCStringRef;
 
 /* Include this here to make sure our assertion handler is always
  * used.  (This file is a dependency of most everything anyway,

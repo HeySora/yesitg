@@ -2,13 +2,9 @@
 #include "Banner.h"
 #include "PrefsManager.h"
 #include "SongManager.h"
-#include "RageUtil.h"
 #include "song.h"
 #include "RageTextureManager.h"
-#include "Course.h"
 #include "Character.h"
-#include "ThemeMetric.h"
-#include "RageLog.h"
 
 ThemeMetric<bool> SCROLL_RANDOM		("Banner","ScrollRandom");
 ThemeMetric<bool> SCROLL_ROULETTE		("Banner","ScrollRoulette");
@@ -56,7 +52,7 @@ void Banner::Update( float fDeltaTime )
 
 	if( m_bScrolling )
 	{
-        m_fPercentScrolling += fDeltaTime/2;
+		m_fPercentScrolling += fDeltaTime/2; 
 		m_fPercentScrolling -= (int)m_fPercentScrolling;
 
 		const RectF *pTextureRect = m_pTexture->GetTextureCoordRect(0);
@@ -153,7 +149,10 @@ void Banner::LoadIconFromCharacter( Character* pCharacter )
 
 void Banner::LoadTABreakFromCharacter( Character* pCharacter )
 {
-	if( pCharacter == NULL )					Load( THEME->GetPathG("Common","fallback takingabreak") );
+	if( pCharacter == NULL )
+	{
+		Load( THEME->GetPathG("Common","fallback takingabreak") );
+	}
 	else 
 	{
 		Load( pCharacter->GetTakingABreakPath() );
@@ -169,13 +168,13 @@ void Banner::LoadFallback()
 void Banner::LoadRoulette()
 {
 	Load( THEME->GetPathG("Banner","roulette") );
-	m_bScrolling = (bool)SCROLL_RANDOM;
+	m_bScrolling = (bool)SCROLL_ROULETTE;
 }
 
 void Banner::LoadRandom()
 {
 	Load( THEME->GetPathG("Banner","random") );
-	m_bScrolling = (bool)SCROLL_ROULETTE;
+	m_bScrolling = (bool)SCROLL_RANDOM;
 }
 
 

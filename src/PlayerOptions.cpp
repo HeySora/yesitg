@@ -1,17 +1,13 @@
 #include "global.h"
 #include "PlayerOptions.h"
-#include "RageUtil.h"
 #include "RageLog.h"
 #include "GameState.h"
 #include "NoteSkinManager.h"
 #include "song.h"
 #include "Course.h"
 #include "Steps.h"
-#include "ThemeManager.h"
-#include "Foreach.h"
 #include "Style.h"
 #include "CommonMetrics.h"
-#include "GameConstantsAndTypes.h"
 #include "arch/Dialog/Dialog.h"
 
 #define ONE( arr ) { for( unsigned Z = 0; Z < ARRAYLEN(arr); ++Z ) arr[Z]=1.0f; }
@@ -155,9 +151,10 @@ void PlayerOptions::GetMods( vector<CString> &AddTo ) const
 	AddPart( AddTo, m_fCover,	"Cover" );
 
 	AddPart( AddTo, m_fPassmark, "Passmark" );
-	AddPart( AddTo, m_fTimingScale, "JudgeScale" );
-
 	AddPart( AddTo, m_fRandomSpeed, "RandomSpeed" );
+
+	if( m_fTimingScale != 1.0f )
+		AddPart( AddTo, m_fTimingScale, "Timing" );
 
 	if( m_bTurns[TURN_MIRROR] )			AddTo.push_back( "Mirror" );
 	if( m_bTurns[TURN_LEFT] )			AddTo.push_back( "Left" );

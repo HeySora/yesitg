@@ -1,30 +1,25 @@
 #include "global.h"
 #include "OptionRowHandler.h"
-#include "LuaManager.h"
 #include "ScreenOptionsMasterPrefs.h"
 #include "NoteSkinManager.h"
-#include "RageUtil.h"
 #include "RageLog.h"
 #include "GameState.h"
-#include "Course.h"
 #include "Steps.h"
 #include "Style.h"
 #include "song.h"
 #include "SongManager.h"
 #include "Character.h"
 #include "PrefsManager.h"
-#include "StepsUtil.h"
 #include "GameManager.h"
-#include "Foreach.h"
-#include "ScreenManager.h"
-#include "GameSoundManager.h"
 #include "CommonMetrics.h"
 #include "ProfileManager.h"
-#include "PlayerNumber.h"
 
 #define ENTRY(s)					THEME->GetMetric ("ScreenOptionsMaster",s)
 #define ENTRY_MODE(s,i)				THEME->GetMetric ("ScreenOptionsMaster",ssprintf("%s,%i",(s).c_str(),(i+1)))
 #define ENTRY_DEFAULT(s)			THEME->GetMetric ("ScreenOptionsMaster",(s) + "Default")
+
+/*Metrics entry to toggle the display of the song's meter besides the difficulty name in ScreenPlayerOptions -Wanny */
+ThemeMetric<bool> HIDE_METER		("ScreenPlayerOptions","HideMeter"); 
 
 static void SelectExactlyOne( int iSelection, vector<bool> &vbSelectedOut )
 {
@@ -216,11 +211,10 @@ public:
 	}
 	void ImportOption( const OptionRowDefinition &def, const vector<PlayerNumber> &vpns, vector<bool> vbSelectedOut[NUM_PLAYERS] ) const
 	{
-		int iFallbackOption = -1;
-		bool bUseFallbackOption = true;
-
 		FOREACH_CONST( PlayerNumber, vpns, pn )
 		{
+			int iFallbackOption = -1;
+			bool bUseFallbackOption = true;
 			PlayerNumber p = *pn;
 			vector<bool> &vbSelOut = vbSelectedOut[p];
 
@@ -397,7 +391,10 @@ public:
 					s = pSteps->GetDescription();
 				else
 					s = DifficultyToThemedString( pSteps->GetDifficulty() );
-				s += ssprintf( " %d", pSteps->GetMeter() );
+				if (!HIDE_METER) // Condition to display the meter or not -Wanny
+				{
+					s += ssprintf( " %d", pSteps->GetMeter() );
+				}
 				defOut.choices.push_back( s );
 				GameCommand mc;
 				mc.m_pSteps = pSteps;

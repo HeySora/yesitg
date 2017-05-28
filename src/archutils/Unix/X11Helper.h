@@ -5,6 +5,8 @@
 #include <X11/Xlib.h>		// Window
 
 #include "RageDisplay.h"	// RageDisplay
+#include <vector>           // std::vector
+#include <GL/glx.h>         // GLXContext
 
 namespace X11Helper
 {
@@ -15,13 +17,32 @@ namespace X11Helper
 	// internal session-tracking stuff (so you should call this anyway).
 	bool Go();
 
+	// Shitty getters because "undefined reference to" is annoying me
+	Display *GetDpy();
+	std::vector<Window> GetWins();
+	std::vector<GLXContext> GetCtxs();
+
 	// The current Display (connection). Initialized by the first call to
 	// Go().
 	extern Display *Dpy;
 
-	// Get the current open window. Initialized by the first call to
-	// MakeWindow().
-	extern Window Win;
+	// A vector containing active windows.
+	extern std::vector<Window> Wins;
+
+	// A vector containing active GLX contexts.
+	extern std::vector<GLXContext> Ctxs;
+
+	// Set current GL Viewport
+	void SetViewport(int shift_left, int shift_down);
+
+	// Set current GLX Context
+	bool SetCurrentContext(unsigned int i);
+
+	// Destroy a specific window by its index.
+	void DestroyWindow(unsigned int i);
+
+	// Destroy a specific window.
+	void DestroyWindow(Window w);
 
 	// (Re)create the window on the screen of this number with this depth,
 	// this visual type, this width (optional -- you can resize the window
@@ -42,6 +63,30 @@ namespace X11Helper
 	// internal session-tracking stuff (so you should call it anyway).
 	void Stop();
 };
+
+
+namespace H
+{
+	namespace X11Helper
+	{
+		// Shitty getters because "undefined reference to" is annoying me
+		Display *GetDpy();
+		std::vector<Window> GetWins();
+		std::vector<GLXContext> GetCtxs();
+
+		// Set current GL Viewport
+		void SetViewport(int shift_left, int shift_down);
+
+		// Set current GLX Context
+		bool SetCurrentContext(unsigned int i);
+
+		// Destroy a specific window by its index.
+		void DestroyWindow(unsigned int i);
+
+		// Destroy a specific window.
+		void DestroyWindow(Window w);
+	}
+}
 
 #endif
 

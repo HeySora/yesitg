@@ -1,25 +1,15 @@
 #include "global.h"
-#include "Profile.h"
-#include "RageUtil.h"
 #include "PrefsManager.h"
-#include "XmlFile.h"
 #include "IniFile.h"
 #include "GameManager.h"
 #include "RageLog.h"
-#include "RageFile.h"
 #include "song.h"
 #include "SongManager.h"
 #include "Steps.h"
-#include "Course.h"
-#include "ThemeManager.h"
 #include "CryptManager.h"
 #include "ProfileManager.h"
 #include "RageFileManager.h"
-#include "LuaManager.h"
 #include "crypto/CryptRand.h"
-#include "UnlockManager.h"
-#include "XmlFile.h"
-#include "Foreach.h"
 #include "CatalogXml.h"
 #include "Bookkeeper.h"
 #include "Game.h"
@@ -1093,11 +1083,6 @@ Profile::LoadResult Profile::LoadEditableDataFromDir( CString sDir )
 	if( m_iWeightPounds != 0 )
 		CLAMP( m_iWeightPounds, 20, 1000 );
 
-	if ( ! PREFSMAN->m_bAllowExtraPlayerOptions )
-	{
-		LOG->Warn( "AllowExtraPlayerOptions turned off, skipping Extra.ini" );
-		return success;
-	}
 	if ( FILEMAN->GetFileSizeInBytes(efn) > MAX_EDITABLE_INI_SIZE_BYTES )
 	{
 		LOG->Warn( "The file '%s' is unreasonably large.  It won't be loaded.", efn.c_str() );
@@ -1189,20 +1174,20 @@ void Profile::LoadGeneralDataFromNode( const XNode* pNode )
 	pNode->GetChildValue( "TotalMines",						m_iTotalMines );
 	pNode->GetChildValue( "TotalHands",						m_iTotalHands );
 
-	if( IsMachine() )
+	CString sData;
+	if( pNode->GetChildValue( "Data", sData ) )
 	{
-		CString sData;
-		if( pNode->GetChildValue( "Data", sData ) )
+		/* IMPORTANT: sandbox this call. We're taking arbitrary
+		 * Lua from a source whose chain of trust has been broken. */
+		m_SavedLuaData.LoadFromString( sData, true );
+
+		if( m_SavedLuaData.GetLuaType() != LUA_TTABLE )
 		{
-			m_SavedLuaData.LoadFromString( sData );
-			if( m_SavedLuaData.GetLuaType() != LUA_TTABLE )
-			{
-				LOG->Warn( "Profile data did not evaluate to a table" );
-				Lua *L = LUA->Get();
-				lua_newtable( L );
-				m_SavedLuaData.SetFromStack( L );
-				LUA->Release( L );
-			}
+			LOG->Warn( "Profile data did not evaluate to a table" );
+			Lua *L = LUA->Get();
+			lua_newtable( L );
+			m_SavedLuaData.SetFromStack( L );
+			LUA->Release( L );
 		}
 	}
 
@@ -1237,9 +1222,11 @@ void Profile::LoadGeneralDataFromNode( const XNode* pNode )
 				}
 				CHECKPOINT_M("CustomSpeedMod check 3");
 				split(m_sDefaultModifiers[GAMESTATE->GetCurrentGame()->m_szName], ", ", sDefaultMods);
+				sDefaultMods[0].MakeLower();
 				bool found = false;
 				for (unsigned i = 0; i < sPossibleSpeedMods.size(); i++)
 				{
+					sPossibleSpeedMods[i].MakeLower();
 					if (sDefaultMods[0] == sPossibleSpeedMods[i]) found = true;
 				}
 				if (!found)

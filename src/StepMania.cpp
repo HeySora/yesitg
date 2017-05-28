@@ -1,5 +1,4 @@
 #include "global.h"
-
 #include "StepMania.h"
 
 //
@@ -10,12 +9,7 @@
 #include "RageSoundManager.h"
 #include "GameSoundManager.h"
 #include "RageInput.h"
-#include "RageTimer.h"
-#include "RageException.h"
-#include "RageMath.h"
 #include "RageDisplay.h"
-#include "RageThreads.h"
-#include "CryptHelpers.h"
 
 #include "arch/ArchHooks/ArchHooks.h"
 #include "arch/LoadingWindow/LoadingWindow.h"
@@ -29,14 +23,12 @@
 #endif
 
 #include "Screen.h"
-#include "ScreenDimensions.h"
 #include "CodeDetector.h"
 #include "CommonMetrics.h"
 #include "Game.h"
 #include "RageSurface.h"
 #include "RageSurface_Load.h"
 #include "CatalogXml.h"
-#include "DiagnosticsUtil.h"
 
 #if !defined(SUPPORT_OPENGL) && !defined(SUPPORT_D3D)
 #define SUPPORT_OPENGL
@@ -45,7 +37,6 @@
 //
 // StepMania global classes
 //
-#include "ThemeManager.h"
 #include "NoteSkinManager.h"
 #include "PrefsManager.h"
 #include "SongManager.h"
@@ -53,24 +44,18 @@
 #include "AnnouncerManager.h"
 #include "ProfileManager.h"
 #include "MemoryCardManager.h"
-#include "ScreenManager.h"
-#include "LuaManager.h"
 #include "GameManager.h"
 #include "FontManager.h"
-#include "InputFilter.h"
 #include "InputMapper.h"
 #include "InputQueue.h"
 #include "SongCacheIndex.h"
 #include "BannerCache.h"
 #include "UnlockManager.h"
-#include "RageFileManager.h"
-#include "RageFileDriverZip.h"
 #include "Bookkeeper.h"
 #include "LightsManager.h"
 #include "ModelManager.h"
 #include "CryptManager.h"
 #include "NetworkSyncManager.h"
-#include "MessageManager.h"
 #include "StatsManager.h"
 #include "UserPackManager.h"
 
@@ -85,6 +70,7 @@
 
 #if defined(WIN32) && !defined(XBOX)
 #include <windows.h>
+#include "archutils/Win32/VideoDriverInfo.h"
 #endif
 
 #if defined(UNIX)
@@ -96,10 +82,8 @@
  * for arcade cabinets without testing it first... -- vyhd */
 
 #if defined(ITG_ARCADE) && defined(LINUX)
-#define PATCH_DIR	"/stats/patch"
 #define PATCH_FILE	"/rootfs/stats/patch/patch.zip"
 #else
-#define PATCH_DIR	"Data/patch"
 #define PATCH_FILE	"Data/patch/patch.zip"
 #endif
 
@@ -317,7 +301,7 @@ void ResetGame()
 		if( THEME->DoesThemeExist( sGameName ) )
 			THEME->SwitchThemeAndLanguage( sGameName, THEME->GetCurLanguage() );
 		else
-			THEME->SwitchThemeAndLanguage( "default", THEME->GetCurLanguage() );
+			THEME->SwitchThemeAndLanguage( PREFSMAN->m_sTheme.GetDefault(), THEME->GetCurLanguage() );
 		TEXTUREMAN->DoDelayedDelete();
 	}
 	SaveGamePrefsToDisk();
@@ -425,7 +409,6 @@ static void CheckSettings()
 
 #include "RageDisplay_Null.h"
 
-#include "archutils/Win32/VideoDriverInfo.h"
 
 
 struct VideoCardDefaults
@@ -835,6 +818,7 @@ void ReadGamePrefsFromDisk( bool bSwitchToLastPlayedGame )
 	ini.GetValue( sGameName, "Announcer",			sAnnouncer );
 	ini.GetValue( sGameName, "Theme",				sTheme );
 	ini.GetValue( sGameName, "DefaultModifiers",	sDefaultModifiers );
+	PREFSMAN->m_sTheme.Set( sTheme );
 	PREFSMAN->m_sDefaultModifiers.Set( sDefaultModifiers );
 
 	// it's OK to call these functions with names that don't exist.
@@ -855,7 +839,7 @@ void SaveGamePrefsToDisk()
 	ini.ReadFile( GAMEPREFS_INI_PATH );	// it's OK if this fails
 
 	ini.SetValue( sGameName, "Announcer",			ANNOUNCER->GetCurAnnouncerName() );
-	ini.SetValue( sGameName, "Theme",				THEME->GetCurThemeName() );
+	ini.SetValue( sGameName, "Theme",				PREFSMAN->m_sTheme );
 	ini.SetValue( sGameName, "DefaultModifiers",	PREFSMAN->m_sDefaultModifiers );
 	ini.SetValue( "Options", "Game",				(CString)GAMESTATE->GetCurrentGame()->m_szName );
 
@@ -895,15 +879,14 @@ static void MountTreeOfZips( const CString &dir, bool recurse = true )
 	}
 }
 
-extern const bool VersionSVN;
-extern unsigned long VersionNumber;
-extern const char *const VersionTime;
-
 static void WriteLogHeader()
 {
-	LOG->Info( PRODUCT_NAME_VER );
-	LOG->Info( "Compiled %s (%s %lu)", VersionTime, 
-		VersionSVN ? "revision" : "build", VersionNumber );
+	LOG->Info( ProductInfo::GetFullVersion() );
+
+	LOG->Info( "Compiled %s (build %s)",
+		ProductInfo::GetBuildDate().c_str(),
+		ProductInfo::GetBuildRevision().c_str()
+	);
 
 	time_t cur_time;
 	time(&cur_time);
@@ -1061,12 +1044,19 @@ int main(int argc, char* argv[])
 	if( IsADirectory(PATCH_DATA_DIR) )
 	{
 		LOG->Info( "VFS: mounting Data/patch/patch/." );
-		FILEMAN->Mount( "dirro", PATCH_DATA_DIR, "/", false );
+
+		// IsADirectory checks against the VFS, but we need to mount against a physical path
+		CString physicalPath = FILEMAN->ResolvePath( PATCH_DATA_DIR );
+		FILEMAN->Mount( "dirro", physicalPath, "/", false );
 	}
 	else if( IsAFile(PATCH_FILE) )
 	{
 		LOG->Info( "VFS: mounting patch.zip." );
-		FILEMAN->Mount( "patch", PATCH_DIR, "/Patch" );
+
+		CString patchFileVirtualDir = Dirname(PATCH_FILE);
+		CString patchDirPhysicalPath = FILEMAN->ResolvePath( patchFileVirtualDir );
+
+		FILEMAN->Mount( "patch", patchDirPhysicalPath, "/Patch" );
 		FILEMAN->Mount( "zip", "/Patch/patch.zip", "/", false );
 	}
 	else
@@ -1105,13 +1095,11 @@ int main(int argc, char* argv[])
 	LUA			= new LuaManager;
 	GAMESTATE	= new GameState;
 
-	/* This requires PREFSMAN, for PREFSMAN->m_bShowLoadingWindow. */
+	/* This requires PREFSMAN, for g_bShowLoadingWindow. */
 	LoadingWindow *loading_window = LoadingWindow::Create();
-	if( loading_window == NULL )
-		RageException::Throw( "Couldn't open any loading windows." );
 
-	srand( time(NULL) );	// seed number generator	
-	
+	srand( time(NULL) );	// seed number generator
+
 	/* Do this early, so we have debugging output if anything else fails.  LOG and
 	 * Dialog must be set up first.  It shouldn't take long, but it might take a
 	 * little time; do this after the LoadingWindow is shown, since we don't want
@@ -1162,18 +1150,8 @@ int main(int argc, char* argv[])
 	/* depends on SONGINDEX: */
 	SONGMAN		= new SongManager();
 
-	//
-	// 9/25/08: moved the cache sink to /itgdata because
-	//    it would fill up all of stats if the user has too many songs
-	//       --infamouspat
-	//
-#ifdef ITG_ARCADE
-	system( "mount -o remount,rw /itgdata" );
-#endif
 	SONGMAN->InitAll( loading_window );		// this takes a long time
-#ifdef ITG_ARCADE
-	system( "mount -o remount,ro /itgdata" );
-#endif
+
 	CRYPTMAN	= new CryptManager;	// need to do this before ProfileMan
 	MEMCARDMAN	= new MemoryCardManager;
 	PROFILEMAN	= new ProfileManager;

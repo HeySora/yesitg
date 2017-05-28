@@ -1,39 +1,25 @@
 #include "global.h"
 #include "RageFile.h"
 #include "RageLog.h"
-#include "RageUtil.h"
-#include "Foreach.h"
-#include "IniFile.h"
-#include "AnnouncerManager.h"
 #include "Bookkeeper.h"
 #include "GameState.h"
-#include "GameManager.h"
-#include "InputMapper.h"
 #include "LightsManager.h"
 #include "MemoryCardManager.h"
-#include "MessageManager.h"
 #include "NoteSkinManager.h"
 #include "PrefsManager.h"
 #include "ProfileManager.h"
-#include "ScreenManager.h"
 #include "SongManager.h"
 #include "StatsManager.h"
-#include "ThemeManager.h"
-#include "UnlockManager.h"
 #include "CommonMetrics.h"
 #include "CommonMetrics.h"
-#include "GameConstantsAndTypes.h"
-#include "NoteFieldPositioning.h"
 #include "PlayerState.h"
 #include "Character.h"
 #include "GameCommand.h"
 #include "Actor.h"
 #include "Game.h"
 #include "Style.h"
-#include "Screen.h"
 #include "song.h"
 #include "Steps.h"
-#include "Course.h"
 #include "LuaReference.h"
 #include "StepMania.h"
 
@@ -308,6 +294,17 @@ int GameState::GetCoinsNeededToJoin() const
 	return iCoinsToCharge;
 }
 
+void GameState::SetSongInProgress( const CString &sWriteOut )
+{
+	CString sLockFile = "Data/songinprogress";
+	LOG->Debug("GameState::SetSongInProgress( %s )", sWriteOut.c_str());
+
+	RageFile f;
+	f.Open(sLockFile, RageFile::WRITE);
+	f.Write( sWriteOut );
+	f.Close();
+}
+
 /*
  * Game flow:
  *
@@ -327,7 +324,7 @@ int GameState::GetCoinsNeededToJoin() const
  *   Clears data which was stored by CommitStageStats.
  *
  * EndGame() - the game is finished
- * 
+ *
  */
 void GameState::BeginGame()
 {
@@ -354,13 +351,15 @@ void GameState::PlayersFinalized()
 
 	MEMCARDMAN->LockCards();
 
+	FOREACH_HumanPlayer( pn )
+	{
+		MEMCARDMAN->MountCard( pn, 600 );
+		PROFILEMAN->LoadFirstAvailableProfile( pn );	// load full profile
+	}
+
 	// apply saved default modifiers if any
 	FOREACH_HumanPlayer( pn )
 	{
-		MEMCARDMAN->MountCard( pn );
-
-		PROFILEMAN->LoadFirstAvailableProfile( pn );	// load full profile
-
 		if (PREFSMAN->m_bCustomSongs && !GAMESTATE->IsCourseMode())
 		{
 			SONGMAN->LoadPlayerSongs( pn );		// load custom songs, if any
@@ -373,7 +372,10 @@ void GameState::PlayersFinalized()
 		}
 
 		MEMCARDMAN->UnmountCard( pn );
+	}
 
+	FOREACH_HumanPlayer( pn )
+	{
 		if( !PROFILEMAN->IsPersistentProfile(pn) )
 			continue;	// skip
 
@@ -1881,7 +1883,7 @@ Difficulty GameState::GetEasiestStepsDifficulty() const
 	{
 		if( this->m_pCurSteps[p] == NULL )
 		{
-			LOG->Warn( "GetEasiestNotesDifficulty called but p%i hasn't chosen notes", p+1 );
+			LOG->Warn( "GetEasiestStepsDifficulty called but p%i hasn't chosen notes", p+1 );
 			continue;
 		}
 		dc = min( dc, this->m_pCurSteps[p]->GetDifficulty() );

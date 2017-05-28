@@ -1,15 +1,14 @@
 #include "global.h"
 #include "ActorFrame.h"
-#include "arch/Dialog/Dialog.h"
 #include "RageLog.h"
-#include "RageUtil.h"
 #include "XmlFile.h"
 #include "ActorUtil.h"
-#include "LuaBinding.h"
-#include "ActorCommands.h"
 #include "RageDisplay.h"
 #include "ScreenDimensions.h"
-#include "Foreach.h"
+
+#if defined(DEBUG)
+#include "arch/Dialog/Dialog.h"
+#endif
 
 // lua start
 LUA_REGISTER_CLASS( ActorFrame )

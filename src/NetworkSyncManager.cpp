@@ -1,7 +1,5 @@
 #include "global.h"
-#include "NetworkSyncManager.h"
 #include "NetworkSyncServer.h"
-#include "LuaManager.h"
 #include "LuaFunctions.h"
 #include "crypto/CryptMD5.h"
 
@@ -169,7 +167,9 @@ void NetworkSyncManager::PostStartUp(const CString& ServerIP)
 
 	m_packet.Write1(NETPROTOCOLVERSION);
 
-	m_packet.WriteNT(CString(PRODUCT_NAME_VER)); 
+	/* We haven't actually changed any of the networking code,
+	 * so spoof our version to prevent unnecessary issues. -- vyhd */
+	m_packet.WriteNT( CString("StepMania 3.95") );
 
 	//Block until responce is received
 	//Move mode to blocking in order to give CPU back to the 

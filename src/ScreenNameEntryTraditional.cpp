@@ -1,29 +1,17 @@
 #include "global.h"
 #include "ScreenNameEntryTraditional.h"
 #include "SongManager.h"
-#include "ScreenManager.h"
-#include "GameConstantsAndTypes.h"
-#include "RageUtil.h"
-#include "PrefsManager.h"
 #include "GameManager.h"
 #include "RageLog.h"
 #include "GameState.h"
 #include "GameSoundManager.h"
-#include "ThemeManager.h"
-#include "ScreenRanking.h"
-#include "Course.h"
-#include "ActorUtil.h"
 #include "FontCharAliases.h"
 #include "AnnouncerManager.h"
-#include "song.h"
-#include "Steps.h"
 #include "ProfileManager.h"
 #include "StatsManager.h"
 #include "RageDisplay.h"
-#include "Foreach.h"
 #include "Style.h"
 #include "ScreenDimensions.h"
-#include "Command.h"
 
 //
 // Defines specific to ScreenNameEntryTraditional
@@ -205,7 +193,7 @@ void ScreenNameEntryTraditional::Init()
 	{
 		vector<GameState::RankingFeat> aFeats;
 		GAMESTATE->GetRankingFeats( p, aFeats );
-		m_bStillEnteringName[p] = aFeats.size()>0;
+		m_bStillEnteringName[p] = aFeats.size()>0 || PROFILEMAN->ProfileFromMemoryCardIsNew(p);
 		m_CurFeat[p] = 0;
 	}
 
@@ -215,6 +203,8 @@ void ScreenNameEntryTraditional::Init()
 	{
 		FOREACH_HumanPlayer( p )
 		{
+			const Profile* pProfile = PROFILEMAN->GetProfile(p);
+
 			// don't show keyboard if didn't make any high scores
 			if( !m_bStillEnteringName[p] )
 			{
@@ -294,7 +284,6 @@ void ScreenNameEntryTraditional::Init()
 			PositionCharsAndCursor( p );
 
 			// load last used ranking name if any
-			const Profile* pProfile = PROFILEMAN->GetProfile(p);
 			if( pProfile && !pProfile->m_sLastUsedHighScoreName.empty() )
 			{
 				m_sSelection[p] = CStringToWstring( pProfile->m_sLastUsedHighScoreName );

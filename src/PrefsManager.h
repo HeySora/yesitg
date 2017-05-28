@@ -179,13 +179,8 @@ public:
 	// Player songs options
 	Preference<bool>	m_bCustomSongs;
 	Preference<bool>	m_bCustomSongPreviews;
-	Preference<int>		m_iCustomsLoadMax;
 	Preference<float>	m_fCustomsLoadTimeout;
-
 	Preference<int>		m_iCustomMaxSeconds;
-	Preference<int>		m_iCustomMaxSizeMB;
-	Preference<int>		m_iCustomMaxStepsSizeKB;
-	Preference<bool>	m_bAllowExtraPlayerOptions;
 
 	Preference<bool>	m_bCustomCourses;
 
@@ -317,6 +312,7 @@ public:
 	Preference<bool>	m_bLogCheckpoints;
 
 	/* Game-specific prefs: */
+	Preference<CString> m_sTheme;
 	Preference<CString>	m_sDefaultModifiers;
 
 #if defined(XBOX)

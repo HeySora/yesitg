@@ -1,25 +1,18 @@
 #include "global.h"
 #include "ProfileManager.h"
-#include "RageUtil.h"
 #include "PrefsManager.h"
 #include "RageLog.h"
-#include "RageFile.h"
 #include "RageFileManager.h"
-#include "IniFile.h"
-#include "GameConstantsAndTypes.h"
 #include "SongManager.h"
 #include "GameState.h"
 #include "song.h"
 #include "Steps.h"
-#include "Course.h"
-#include "GameManager.h"
-#include "ProductInfo.h"
-#include "RageUtil.h"
-#include "ThemeManager.h"
 #include "MemoryCardManager.h"
-#include "XmlFile.h"
-#include "StepsUtil.h"
 #include "Style.h"
+
+/* GUID generation for arcade */
+#include "DiagnosticsUtil.h"
+#include "iButton.h"
 
 
 ProfileManager*	PROFILEMAN = NULL;	// global and accessable from anywhere in our program
@@ -50,6 +43,7 @@ void ProfileManager::Init()
 		m_bWasLoadedFromMemoryCard[p] = false;
 		m_bLastLoadWasTamperedOrCorrupt[p] = false;
 		m_bLastLoadWasFromLastGood[p] = false;
+		m_bNewProfile[p] = false;
 	}
 
 	LoadMachineProfile();
@@ -150,16 +144,24 @@ void ProfileManager::GetMemoryCardProfileDirectoriesToTry( vector<CString> &asDi
 
 bool ProfileManager::LoadProfileFromMemoryCard( PlayerNumber pn )
 {
+	// This method basically covers loading an entire profile, so by measuring
+	// the time taken by this method, we can roughly measure how long it takes
+	// to load a profile for performance testing.
+	CString key = ssprintf("LoadProfileFromMemoryCard-P%d",pn+1);
+	LOG->ProfileStart(key, "Loading Profile Started");
 	UnloadProfile( pn );
 
 	// mount slot
-	if( MEMCARDMAN->GetCardState(pn) != MEMORY_CARD_STATE_READY )
+	if( MEMCARDMAN->GetCardState(pn) != MEMORY_CARD_STATE_READY ) {
+		LOG->ProfileStop(key, "Loading Profile Ended");
 		return false;
+	}
 
 	vector<CString> asDirsToTry;
 	GetMemoryCardProfileDirectoriesToTry( asDirsToTry );
 
 	int iLoadedFrom = -1;
+	m_bNewProfile[pn] = true;
 	for( unsigned i = 0; i < asDirsToTry.size(); ++i )
 	{
 		const CString &sSubdir = asDirsToTry[i];
@@ -177,11 +179,15 @@ bool ProfileManager::LoadProfileFromMemoryCard( PlayerNumber pn )
 		if( res == Profile::success )
 		{
 			iLoadedFrom = i;
+			m_bNewProfile[pn] = false;
 			break;
 		}
 		
 		if( res == Profile::failed_tampered )
+		{
+			m_bNewProfile[pn] = false;
 			break;
+		}
 	}
 
 	/* Store the directory we imported from, for display purposes. */
@@ -204,6 +210,7 @@ bool ProfileManager::LoadProfileFromMemoryCard( PlayerNumber pn )
 		SONGMAN->LoadAllFromProfileDir( sDir, (ProfileSlot) pn );
 	}
 
+	LOG->ProfileStop(key, "Loading Profile Ended");
 	return true; // If a card is inserted, we want to use the memory card to save - even if the Profile load failed.
 }
 
@@ -409,6 +416,16 @@ void ProfileManager::LoadMachineProfile()
 		m_MachineProfile.LoadAllFromDir( MACHINE_PROFILE_DIR, false );
 	}
 
+	// Set the GUID according to the dongle if we've got it.
+	// Note that we don't use debug serials here: those aren't unique.
+	CString sSerial = iButton::GetSerialNumber();
+
+	if( !sSerial.empty() )
+	{
+		CString sGuid = DiagnosticsUtil::GetGuidFromSerial( sSerial );
+		m_MachineProfile.m_sGuid = sGuid;
+	}
+
 	// If the machine name has changed, make sure we use the new name
 	m_MachineProfile.m_sDisplayName = PREFSMAN->m_sMachineName;
 
@@ -419,6 +436,11 @@ void ProfileManager::LoadMachineProfile()
 bool ProfileManager::ProfileWasLoadedFromMemoryCard( PlayerNumber pn ) const
 {
 	return GetProfile(pn) && m_bWasLoadedFromMemoryCard[pn];
+}
+
+bool ProfileManager::ProfileFromMemoryCardIsNew( PlayerNumber pn ) const
+{
+	return GetProfile(pn) && m_bWasLoadedFromMemoryCard[pn] && m_bNewProfile[pn];
 }
 
 bool ProfileManager::LastLoadWasTamperedOrCorrupt( PlayerNumber pn ) const

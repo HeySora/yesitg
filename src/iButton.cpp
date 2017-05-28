@@ -4,27 +4,29 @@
 #include "iButton.h"
 
 extern "C" {
-#include "ibutton/ownet.h"
 #include "ibutton/shaib.h"
 }
 
+// owAcquireEx is stupid and takes a char * when it really won't modify it
+char serial_port[] =
 #ifdef WIN32
-#define SERIAL_PORT "COM1"
+	"COM1"
 #else
-#define SERIAL_PORT "/dev/ttyS0"
+	"/dev/ttyS0"
 #endif
+;
 
-int iButton::GetAESKey(const uchar *subkey, uchar *output)
+bool iButton::GetAESKey(const uchar *subkey, uchar *output)
 {
 	uchar firstDataPage[32], firstScratchPad[32];
 	SHACopr copr;
 
 	memcpy(firstDataPage, subkey, 32);
 
-	if ((copr.portnum = owAcquireEx(SERIAL_PORT)) == -1)
+	if ((copr.portnum = owAcquireEx(serial_port)) == -1)
 	{
 		LOG->Warn( "GetAESKey(): failed to acquire port." );
-		return -1;
+		return false;
 	}
 
 	FindNewSHA(copr.portnum, copr.devAN, TRUE);
@@ -43,7 +45,7 @@ int iButton::GetAESKey(const uchar *subkey, uchar *output)
 	memcpy(output, firstScratchPad+8, 24);
 	owRelease(copr.portnum);	
 
-	return 0;
+	return true;
 }
 
 CString iButton::GetSerialNumber()
@@ -51,7 +53,7 @@ CString iButton::GetSerialNumber()
 	SHACopr copr;
 	uchar spBuf[32];
 
-	if( (copr.portnum = owAcquireEx(SERIAL_PORT)) == -1 )
+	if( (copr.portnum = owAcquireEx(serial_port)) == -1 )
 	{
 		LOG->Warn("GetSerialNumber(): failed to acquire port.");
 		return CString();

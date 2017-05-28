@@ -23,15 +23,12 @@
 #include "global.h"
 #include "RageSound.h"
 #include "RageSoundManager.h"
-#include "RageUtil.h"
 #include "RageLog.h"
-#include "RageException.h"
 #include "PrefsManager.h"
 #include "arch/ArchHooks/ArchHooks.h"
 #include "RageSoundUtil.h"
 
 #include "RageSoundReader_Preload.h"
-#include "RageSoundReader_Resample.h"
 #include "RageSoundReader_FileReader.h"
 
 const int channels = 2;
@@ -55,6 +52,7 @@ RageSoundParams::RageSoundParams():
 	speed_input_samples = speed_output_samples = 1;
 	AccurateSync = false;
 	StopMode = M_AUTO;
+	m_bIsCriticalSound = false;
 }
 
 RageSound::RageSound():
@@ -559,6 +557,10 @@ void RageSound::StartPlaying()
 	// If no volume is set, use the default.
 	if( m_Param.m_Volume == -1 )
 		m_Param.m_Volume = SOUNDMAN->GetMixVolume();
+
+	// If this is a critical sound, bump it up to full volume.
+	if( m_Param.m_bIsCriticalSound )
+		m_Param.m_Volume = PREFSMAN->GetSoundVolume();
 
 	ASSERT( !m_bPlaying );
 

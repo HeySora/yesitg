@@ -50,8 +50,8 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="libusb\include;.;vorbis;libjpeg;&quot;lua-5.0\include&quot;;BaseClasses"
-				PreprocessorDefinitions="WIN32,_DEBUG,_WINDOWS,WINDOWS,DEBUG"
+				AdditionalIncludeDirectories=".;vorbis;libjpeg;&quot;lua-5.0\include&quot;;libusb\include;BaseClasses;libtomcrypt\src\headers"
+				PreprocessorDefinitions="WIN32,_DEBUG,_WINDOWS,WINDOWS,DEBUG,_CRT_SECURE_NO_WARNINGS"
 				StringPooling="false"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="3"
@@ -89,7 +89,7 @@
 				LinkIncremental="2"
 				SuppressStartupBanner="true"
 				AdditionalLibraryDirectories="&quot;libusb\lib\msvc&quot;"
-				IgnoreDefaultLibraryNames="wininet.lib;msimg32.lib;libci.lib;libcmt.lib"
+				IgnoreDefaultLibraryNames="wininet.lib;msimg32.lib;libci.lib;libcmtd.lib;libcmt.lib"
 				GenerateDebugInformation="true"
 				AssemblyDebug="0"
 				ProgramDatabaseFile="$(IntDir)/StepMania-debug.pdb"
@@ -161,7 +161,7 @@
 				InlineFunctionExpansion="2"
 				EnableIntrinsicFunctions="true"
 				FavorSizeOrSpeed="2"
-				AdditionalIncludeDirectories=".;vorbis;libjpeg;&quot;lua-5.0\include&quot;;libusb\include;BaseClasses"
+				AdditionalIncludeDirectories=".;vorbis;libjpeg;&quot;lua-5.0\include&quot;;libusb\include;BaseClasses;libtomcrypt\src\headers"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;WINDOWS;RELEASE"
 				StringPooling="true"
 				MinimalRebuild="false"
@@ -266,7 +266,7 @@
 				Name="VCCLCompilerTool"
 				AdditionalOptions="/EHa"
 				Optimization="0"
-				AdditionalIncludeDirectories=".;vorbis;libjpeg;&quot;lua-5.0\include&quot;;libusb\include"
+				AdditionalIncludeDirectories=".;vorbis;libjpeg;&quot;lua-5.0\include&quot;;libusb\include;BaseClasses;libtomcrypt\src\headers"
 				PreprocessorDefinitions="WIN32,_DEBUG,_WINDOWS,WINDOWS,DEBUG"
 				ExceptionHandling="0"
 				BasicRuntimeChecks="0"
@@ -371,7 +371,7 @@
 				InlineFunctionExpansion="2"
 				EnableIntrinsicFunctions="true"
 				FavorSizeOrSpeed="1"
-				AdditionalIncludeDirectories=".;vorbis;libjpeg;&quot;lua-5.0\include&quot;;libusb\include"
+				AdditionalIncludeDirectories=".;vorbis;libjpeg;&quot;lua-5.0\include&quot;;libusb\include;BaseClasses;libtomcrypt\src\headers"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;WINDOWS;RELEASE;ITG_ARCADE"
 				StringPooling="true"
 				MinimalRebuild="false"
@@ -481,7 +481,7 @@
 				InlineFunctionExpansion="2"
 				EnableIntrinsicFunctions="true"
 				FavorSizeOrSpeed="1"
-				AdditionalIncludeDirectories=".;vorbis;libjpeg;&quot;lua-5.0\include&quot;;libusb\include;BaseClasses"
+				AdditionalIncludeDirectories=".;vorbis;libjpeg;&quot;lua-5.0\include&quot;;libusb\include;BaseClasses;libtomcrypt\src\headers"
 				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;WINDOWS;RELEASE;_CRT_SECURE_NO_WARNINGS"
 				StringPooling="true"
 				MinimalRebuild="false"
@@ -592,8 +592,8 @@
 				InlineFunctionExpansion="2"
 				EnableIntrinsicFunctions="true"
 				FavorSizeOrSpeed="2"
-				AdditionalIncludeDirectories=".;vorbis;libjpeg;&quot;lua-5.0\include&quot;;libusb\include;BaseClasses"
-				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;WINDOWS;RELEASE;_CRT_SECURE_NO_WARNINGS"
+				AdditionalIncludeDirectories=".;vorbis;libjpeg;&quot;lua-5.0\include&quot;;libusb\include;BaseClasses;libtomcrypt\src\headers"
+				PreprocessorDefinitions="WIN32;NDEBUG;_WINDOWS;WINDOWS;RELEASE;_CRT_SECURE_NO_WARNINGS;OITG_VERSION=\&quot;b3-win32\&quot;;OITG_DATE=\&quot;03_31_2001\&quot;"
 				StringPooling="true"
 				MinimalRebuild="false"
 				ExceptionHandling="0"
@@ -602,7 +602,7 @@
 				EnableFunctionLevelLinking="false"
 				EnableEnhancedInstructionSet="2"
 				RuntimeTypeInfo="true"
-				UsePrecompiledHeader="2"
+				UsePrecompiledHeader="0"
 				PrecompiledHeaderThrough="global.h"
 				PrecompiledHeaderFile="$(IntDir)/OpenITG.pch"
 				AssemblerListingLocation="$(IntDir)\"
@@ -1924,6 +1924,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\ProductInfo.cpp"
+				>
+			</File>
+			<File
 				RelativePath="ProductInfo.h"
 				>
 			</File>
@@ -2310,6 +2314,14 @@
 						>
 					</File>
 					<File
+						RelativePath=".\arch\Lights\LightsDriver_ActorMessage.cpp"
+						>
+					</File>
+					<File
+						RelativePath=".\arch\Lights\LightsDriver_ActorMessage.h"
+						>
+					</File>
+					<File
 						RelativePath=".\arch\Lights\LightsDriver_Dynamic.cpp"
 						>
 					</File>
@@ -2427,6 +2439,26 @@
 					</File>
 					<File
 						RelativePath="arch\Threads\Threads_Win32.h"
+						>
+					</File>
+				</Filter>
+				<Filter
+					Name="USB"
+					>
+					<File
+						RelativePath=".\arch\USB\USBDriver_Impl.cpp"
+						>
+					</File>
+					<File
+						RelativePath=".\arch\USB\USBDriver_Impl.h"
+						>
+					</File>
+					<File
+						RelativePath=".\arch\USB\USBDriver_Impl_Libusb.cpp"
+						>
+					</File>
+					<File
+						RelativePath=".\arch\USB\USBDriver_Impl_Libusb.h"
 						>
 					</File>
 				</Filter>
@@ -3772,6 +3804,14 @@
 				</File>
 				<File
 					RelativePath="glext.h"
+					>
+				</File>
+				<File
+					RelativePath=".\timer\Timer.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\timer\Timer.h"
 					>
 				</File>
 				<Filter

@@ -1,15 +1,9 @@
 #include "global.h"
-#include "LinkedOptionsMenu.h"
-#include "BitmapText.h"
-#include "ThemeManager.h"
-#include "RageLog.h"
-#include "ActorUtil.h"
-#include "ThemeMetric.h"
-#include "arch/Dialog/DialogDriver.h"
 #include "ScreenManager.h"
-#include "CodeDetector.h"
+#include "ActorUtil.h"
+#include "LinkedOptionsMenu.h"
 
-#ifdef MSVC
+#ifdef _MSC_VER
 /* It's going to be a pain to fix these. Disable for now. */
 #pragma warning( disable : 4018 )	// signed/unsigned mismatch
 #pragma warning( disable : 4244 )	// conversion, possible loss of data
@@ -96,7 +90,6 @@ void LinkedOptionsMenu::Unfocus()
 
 void LinkedOptionsMenu::SetChoices( const CStringArray &asChoices )
 {
-	unsigned iPrevNumChoices = m_Rows.size();
 	ClearChoices();
 
 	for( unsigned i = 0; i < asChoices.size(); i++ )

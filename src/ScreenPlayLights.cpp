@@ -1,18 +1,10 @@
 #include "global.h"
-#include "RageDisplay.h"
-#include "RageLog.h"
-#include "RageTimer.h"
-#include "RageUtil.h"
 #include "GameState.h"
 #include "GameManager.h"
 #include "GameSoundManager.h"
 #include "LightsManager.h"
-#include "MessageManager.h"
 #include "PrefsManager.h"
-#include "ScreenManager.h"
-#include "ThemeManager.h"
 #include "NoteDataUtil.h"
-#include "GameConstantsAndTypes.h"
 #include "Steps.h"
 #include "Game.h"
 #include "Style.h"
@@ -176,17 +168,11 @@ void ScreenPlayLights::UpdateLights()
 	ZERO( bBlinkGameButton );
 
 	/* update the lights data */
-	bool bCrossedABeat = false;
 	{
 		const float fSongBeat = GAMESTATE->m_fLightSongBeat;
 		const int iSongRow = BeatToNoteRowNotRounded( fSongBeat );
 
 		static int iRowLastCrossed = 0;
-
-		float fBeatLast = roundf(NoteRowToBeat(iRowLastCrossed));
-		float fBeatNow = roundf(NoteRowToBeat(iSongRow));
-
-		bCrossedABeat = fBeatLast != fBeatNow;
 
 		// keep all cabinet lights (except buttons) on if the steps haven't started.
 		if( GAMESTATE->m_fSongBeat < GAMESTATE->m_pCurSong->m_fFirstBeat )

@@ -1,9 +1,7 @@
 #include "global.h"
 #include "RageDisplay.h"
-#include "RageTimer.h"
 #include "RageLog.h"
 #include "RageMath.h"
-#include "RageUtil.h"
 #include "RageFile.h"
 #include "RageSurface_Save_BMP.h"
 #include "RageSurface_Save_JPEG.h"
@@ -32,7 +30,7 @@ RageDisplay*		DISPLAY	= NULL;
 
 Preference<bool>  LOG_FPS( "LogFPS", true );
 
-CString RageDisplay::PixelFormatToString( PixelFormat pixfmt )
+CString RageDisplay::PixelFormatToString( RagePixelFormat pixfmt )
 {
 	const CString s[NUM_PIX_FORMATS] = {
 		"FMT_RGBA8",
@@ -532,7 +530,7 @@ RageMatrix RageDisplay::GetPerspectiveMatrix(float fovy, float aspect, float zNe
    return GetFrustumMatrix(xmin, xmax, ymin, ymax, zNear, zFar);
 }
 
-RageSurface *RageDisplay::CreateSurfaceFromPixfmt( PixelFormat pixfmt,
+RageSurface *RageDisplay::CreateSurfaceFromPixfmt( RagePixelFormat pixfmt,
 						void *pixels, int width, int height, int pitch )
 {
 	const PixelFormatDesc *tpf = GetPixelFormatDesc(pixfmt);
@@ -545,20 +543,20 @@ RageSurface *RageDisplay::CreateSurfaceFromPixfmt( PixelFormat pixfmt,
 	return surf;
 }
 
-RageDisplay::PixelFormat RageDisplay::FindPixelFormat( 
-	int bpp, int Rmask, int Gmask, int Bmask, int Amask, bool realtime )
+RageDisplay::RagePixelFormat RageDisplay::FindPixelFormat( 
+	int bpp, unsigned Rmask, unsigned Gmask, unsigned Bmask, unsigned Amask, bool realtime )
 {
 	PixelFormatDesc tmp = { bpp, { Rmask, Gmask, Bmask, Amask } };
 
 	for(int pixfmt = 0; pixfmt < NUM_PIX_FORMATS; ++pixfmt)
 	{
-		const PixelFormatDesc *pf = GetPixelFormatDesc(PixelFormat(pixfmt));
-		if(!SupportsTextureFormat( PixelFormat(pixfmt), realtime ))
+		const PixelFormatDesc *pf = GetPixelFormatDesc(RagePixelFormat(pixfmt));
+		if(!SupportsTextureFormat( RagePixelFormat(pixfmt), realtime ))
 			continue;
 
 		if(memcmp(pf, &tmp, sizeof(tmp)))
 			continue;
-		return PixelFormat(pixfmt);
+		return RagePixelFormat(pixfmt);
 	}
 
 	return NUM_PIX_FORMATS;

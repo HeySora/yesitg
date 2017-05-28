@@ -1,44 +1,29 @@
-/* ProductInfo - Branding strings. */
+/* ProductInfo - Branding strings and Lua globals. */
 
 #ifndef PRODUCT_INFO_H
 #define PRODUCT_INFO_H
 
-#ifdef LINUX
-#include "config.h" // for ITG_ARCADE
-#endif
+namespace ProductInfo
+{
+	/* Binary name + release (e.g. "OpenITG", "beta3") */
+	const CString& GetName();
+	const CString& GetVersion();
 
-#undef OFFICIAL_RELEASE
-//#define OFFICIAL_RELEASE 1
+	/* Binary name + build type + release (e.g. "OpenITG AC beta3") */
+	const CString& GetFullVersion();
 
-/* (x?)xyy - x is release type, y is release version */
-/* 101 - beta 1, 102 - beta 1.1, 103 - beta 2, 104 - beta 3 */
-#define PRODUCT_TOKEN 104
+	/* Build data (e.g. "2012-12-31", "beta3-105-g63a1100") */
+	const CString& GetBuildDate();
+	const CString& GetBuildRevision();
 
-/* The name of the build and its current version */
-#define PRODUCT_NAME "OpenITG"
-#define PRODUCT_VER "beta 3"
-
-#if defined(ITG_ARCADE)
-#define PRODUCT_PLATFORM "AC"
-#elif defined(XBOX)
-#define PRODUCT_PLATFORM "CS" 
-#else
-#define PRODUCT_PLATFORM "PC"
-#endif
-
-#ifndef OFFICIAL_RELEASE
-#define PRODUCT_NAME_VER PRODUCT_NAME " " PRODUCT_PLATFORM " " PRODUCT_VER " DEV"
-#else
-#define PRODUCT_NAME_VER PRODUCT_NAME " " PRODUCT_PLATFORM " " PRODUCT_VER
-#endif
-
-/* A central location from which we can update crash handler data... */
-#define CRASH_REPORT_URL "https://sourceforge.net/tracker2/?atid=1110556&group_id=239714"
+	/* Crash report URL */
+	const CString& GetCrashReportURL();
+};
 
 #endif
 
 /*
- * (c) 2003-2009 Chris Danford, BoXoRRoXoRs
+ * (c) 2003-2013 Chris Danford, Marc Cannon
  * All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a

@@ -10,9 +10,21 @@
 #  include "libpng/include/png.h"
 #  if defined(_MSC_VER)
 #  if defined(_XBOX)
-#    pragma comment(lib, "libpng/lib/xboxlibpng.lib")
+#    pragma comment(lib, "../extern/libpng/lib/xboxlibpng.lib")
+#  elif _MSC_VER == 1400 // Visual Studio 2005 -- MIA do not have
+#	 pragma comment(lib, "../extern/libpng/lib/vs2005/libpng.lib")
+#  elif _MSC_VER == 1500 // Visual Studio 2008 -- MIA do not have
+#	 pragma comment(lib, "../extern/libpng/lib/vs2008/libpng.lib")
+#  elif _MSC_VER == 1600 // Visual Studio 2010
+#	 pragma comment(lib, "../extern/libpng/lib/vs2010/libpng.lib")
+#  elif _MSC_VER == 1700 // Visual Studio 2012 -- MIA do not have
+#	 pragma comment(lib, "../extern/libpng/lib/vs2012/libpng.lib") 
+#  elif _MSC_VER == 1800 // Visual Studio 2013
+#	 pragma comment(lib, "../extern/libpng/lib/vs2013/libpng.lib") 
+#  elif _MSC_VER == 1900 // Visual Studio 2015
+#	 pragma comment(lib, "../extern/libpng/lib/vs2015/libpng.lib") 
 #  else
-#    pragma comment(lib, "libpng/lib/libpng.lib")
+#    pragma comment(lib, "../extern/libpng/lib/libpng.lib") // Visual Studio 2003?
 #  endif
 #  pragma warning(disable: 4611) /* interaction between '_setjmp' and C++ object destruction is non-portable */
 #  endif // _MSC_VER
@@ -49,7 +61,7 @@ namespace
 void RageFile_png_read( png_struct *png, png_byte *p, png_size_t size )
 {
 	CHECKPOINT;
-	RageFile *f = (RageFile *) png->io_ptr;
+	RageFile *f = (RageFile *) png_get_io_ptr( png );
 
 	int got = f->Read( p, size );
 	if( got == -1 )
@@ -75,7 +87,7 @@ struct error_info
 void PNG_Error( png_struct *png, const char *error )
 {
 	CHECKPOINT;
-	error_info *info = (error_info *) png->error_ptr;
+	error_info *info = (error_info *) png_get_error_ptr( png );
 	strncpy( info->err, error, 1024 );
 	info->err[1023] = 0;
 	LOG->Trace( "loading \"%s\": err: %s", info->fn, info->err );
@@ -85,7 +97,7 @@ void PNG_Error( png_struct *png, const char *error )
 void PNG_Warning( png_struct *png, const char *warning )
 {
 	CHECKPOINT;
-	error_info *info = (error_info *) png->error_ptr;
+	error_info *info = (error_info *) png_get_error_ptr( png );
 	LOG->Trace( "loading \"%s\": warning: %s", info->fn, warning );
 }
 

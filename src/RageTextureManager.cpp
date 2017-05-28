@@ -34,11 +34,10 @@
 #include "RageTextureManager.h"
 #include "RageBitmapTexture.h"
 #include "arch/MovieTexture/MovieTexture.h"
-#include "RageUtil.h"
 #include "RageLog.h"
-#include "RageException.h"
 #include "RageDisplay.h"
 #include "Foreach.h"
+#include "ActorUtil.h"
 
 RageTextureManager*		TEXTUREMAN		= NULL;
 
@@ -125,7 +124,7 @@ RageTexture* RageTextureManager::LoadTextureInternal( RageTextureID ID )
 	sExt.MakeLower();
 
 	RageTexture* pTexture;
-	if( sExt == "avi" || sExt == "mpg" || sExt == "mpeg" )
+	if( ActorUtil::GetFileType( ID.filename ) == FT_Movie )
 		pTexture = RageMovieTexture::Create( ID );
 	else
 		pTexture = new RageBitmapTexture( ID );

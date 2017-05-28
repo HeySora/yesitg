@@ -1,5 +1,4 @@
 #include "global.h"
-#include "LuaManager.h"
 #include "LuaFunctions.h"
 #include "LuaReference.h"
 #include "RageUtil.h"
@@ -7,7 +6,6 @@
 #include "RageFile.h"
 #include "RageThreads.h"
 #include "arch/Dialog/Dialog.h"
-#include "Foreach.h"
 
 LuaManager *LUA = NULL;
 static LuaFunctionList *g_LuaFunctions = NULL;
@@ -271,8 +269,14 @@ bool LuaHelpers::RunScriptFile( const CString &sFile )
 	return true;
 }
 
-bool LuaHelpers::RunScriptOnStack( Lua *L, CString &sError, int iArgs, int iReturnValues )
+bool LuaHelpers::RunScriptOnStack( Lua *L, CString &sError, int iArgs, int iReturnValues, bool bSandbox )
 {
+	if( bSandbox )
+	{
+		lua_newtable( L );
+		lua_setfenv( L, -2 );
+	}
+
 	int ret = lua_pcall( L, iArgs, iReturnValues, 0 );
 	if( ret )
 	{
@@ -285,7 +289,7 @@ bool LuaHelpers::RunScriptOnStack( Lua *L, CString &sError, int iArgs, int iRetu
 	return true;
 }
 
-bool LuaHelpers::RunScript( Lua *L, const CString &sScript, const CString &sName, CString &sError, int iReturnValues )
+bool LuaHelpers::RunScript( Lua *L, const CString &sScript, const CString &sName, CString &sError, int iReturnValues, bool bSandbox )
 {
 	// load string
 	{
@@ -301,14 +305,14 @@ bool LuaHelpers::RunScript( Lua *L, const CString &sScript, const CString &sName
 	}
 
 	// evaluate
-	return LuaHelpers::RunScriptOnStack( L, sError, 0, iReturnValues );
+	return LuaHelpers::RunScriptOnStack( L, sError, 0, iReturnValues, bSandbox );
 }
 
 
-bool LuaHelpers::RunScript( Lua *L, const CString &sExpression, const CString &sName, int iReturnValues )
+bool LuaHelpers::RunScript( Lua *L, const CString &sExpression, const CString &sName, int iReturnValues, bool bSandbox )
 {
 	CString sError;
-	if( !LuaHelpers::RunScript( L, sExpression, sName.size()? sName:CString("in"), sError, iReturnValues ) )
+	if( !LuaHelpers::RunScript( L, sExpression, sName.size()? sName:CString("in"), sError, iReturnValues, bSandbox ) )
 	{
 		sError = ssprintf( "Lua runtime error parsing \"%s\": %s", sName.size()? sName.c_str():sExpression.c_str(), sError.c_str() );
 		Dialog::OK( sError, "LUA_ERROR" );
@@ -377,7 +381,22 @@ bool LuaHelpers::RunExpressionS( const CString &str, CString &sOut )
 	if( lua_isfunction( L, -1 ) )
 		RageException::Throw( "result is a function; did you forget \"()\"?" );
 
-	sOut = lua_tostring( L, -1 );
+	int isbool = lua_isboolean(L, -1);
+	if( isbool )
+	{
+		/* lua_tostring automatically converts number to string, but not booleans */
+		int boolOut = lua_toboolean( L, -1 );
+		sOut = boolOut ? "1" : "0";
+	}
+	else
+	{
+		const char* luaString = lua_tostring( L, -1 );
+		if( luaString != NULL )
+			sOut = luaString;
+		else
+			sOut = "";
+	}
+
 	lua_pop( L, 1 );
 
 	LUA->Release(L);

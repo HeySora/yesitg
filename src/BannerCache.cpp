@@ -1,8 +1,5 @@
 #include "global.h"
-
-#include "Foreach.h"
 #include "RageDisplay.h"
-#include "RageUtil.h"
 #include "RageLog.h"
 #include "RageSurface_Load.h"
 #include "BannerCache.h"
@@ -10,7 +7,6 @@
 #include "Sprite.h"
 #include "PrefsManager.h"
 #include "RageDisplay.h"
-#include "RageTexture.h"
 #include "RageTextureManager.h"
 #include "RageSurface.h"
 #include "RageSurfaceUtils.h"
@@ -18,7 +14,6 @@
 #include "RageSurfaceUtils_Dither.h"
 #include "RageSurfaceUtils_Zoom.h"
 
-#include "Banner.h"
 
 #define CACHE_DIR "Cache/"
 #define BANNER_CACHE_INDEX CACHE_DIR "banners.cache"
@@ -225,7 +220,7 @@ struct BannerTexture: public RageTexture
 		/* Find a supported texture format.  If it happens to match the stored
 		 * file, we won't have to do any conversion here, and that'll happen often
 		 * with paletted images. */
-		RageDisplay::PixelFormat pf = img->format->BitsPerPixel == 8? RageDisplay::FMT_PAL: RageDisplay::FMT_RGB5A1;
+		RageDisplay::RagePixelFormat pf = img->format->BitsPerPixel == 8? RageDisplay::FMT_PAL: RageDisplay::FMT_RGB5A1;
 		if( !DISPLAY->SupportsTextureFormat(pf) )
 			pf = RageDisplay::FMT_RGBA4;
 		ASSERT( DISPLAY->SupportsTextureFormat(pf) );

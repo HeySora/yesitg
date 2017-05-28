@@ -1,35 +1,20 @@
+/* vim: set noet */
 #include "global.h"
-#include "HelpDisplay.h"
 #include "ScreenUserPacks.h"
-#include "Screen.h"
 #include "ScreenPrompt.h"
-#include "ScreenWithMenuElements.h"
-#include "PlayerNumber.h"
-#include "SongManager.h"
-#include "RageThreads.h"
 #include "MemoryCardManager.h"
-#include "ScreenDimensions.h"
-#include "RageFileManager.h"
 #include "CodeDetector.h"
-#include "RageFileDriverZip.h"
-#include "CryptManager.h"
-#include "RageUtil.h"
 #include "RageLog.h"
-#include "ProfileManager.h"
 #include "InputMapper.h"
 #include "UserPackManager.h"
-#include "ThemeManager.h"
 #include "DiagnosticsUtil.h"
-#include "RageUtil_FileDB.h" /* defines FileSet */
-#include "RageFileDriverDirect.h" /* defines DirectFilenameDB */
 #include "arch/ArchHooks/ArchHooks.h"
-#include "arch/Dialog/DialogDriver.h"
 
 #define NEXT_SCREEN					THEME->GetMetric (m_sName,"NextScreen")
 #define PREV_SCREEN					THEME->GetMetric (m_sName,"PrevScreen")
 
-ThemeMetric<CString> USER_PACK_WAIT_TEXT( "ScreenUserPacks", "TransferWaitText" );
-ThemeMetric<CString> USER_PACK_CANCEL_TEXT( "ScreenUserPacks", "TransferCancelText" );
+#define USER_PACK_WAIT_TEXT			THEME->GetMetric ("ScreenUserPacks","TransferWaitText")
+#define USER_PACK_CANCEL_TEXT		THEME->GetMetric ("ScreenUserPacks","TransferCancelText")
 
 static RageMutex MountMutex("ITGDataMount");
 
@@ -87,15 +72,6 @@ void ScreenUserPacks::Init()
 {
 	ScreenWithMenuElements::Init();
 
-	if ( USER_PACK_WAIT_TEXT.GetValue().empty() )
-		USER_PACK_WAIT_TEXT.SetValue("Please Wait...");
-
-	if ( USER_PACK_CANCEL_TEXT.GetValue().empty() )
-	{
-		USER_PACK_CANCEL_TEXT.SetValue(ssprintf( "Pressing %s will cancel this selection.",
-			DiagnosticsUtil::GetInputType() == "ITGIO" ? "&MENULEFT;+&MENURIGHT;" : "&SELECT;" ));
-	}
-
 	m_SoundDelete.Load( THEME->GetPathS( m_sName, "delete" ) );
 	m_SoundTransferDone.Load( THEME->GetPathS( m_sName, "transfer done" ) );
 
@@ -147,7 +123,6 @@ void ScreenUserPacks::StartSongThread()
 {
 	while ( !m_bStopThread )
 	{
-		bool bLaunchPrompt = false;
 		if (m_bPrompt)
 		{
 			usleep( 10000 );
@@ -243,10 +218,10 @@ void ScreenUserPacks::Input( const DeviceInput& DeviceI, const InputEventType ty
 
 CString g_CurXferFile;
 CString g_CurSelection;
-unsigned long g_iLastCurrentBytes;
+uint64_t g_iLastCurrentBytes;
 RageTimer g_UpdateDuration;
 
-void UpdateXferProgress( unsigned long iBytesCurrent, unsigned long iBytesTotal )
+bool UpdateXferProgress( uint64_t iBytesCurrent, uint64_t iBytesTotal )
 {
 	bool bInterrupt = false;
 
@@ -260,15 +235,14 @@ void UpdateXferProgress( unsigned long iBytesCurrent, unsigned long iBytesTotal 
 
 	if ( bInterrupt )
 	{
-		InterruptCopy();
-
 		InputEventArray throwaway;
 		INPUTFILTER->GetInputEvents( throwaway );
+		return false;
 	}
 
 	// Draw() is very expensive: only do it on occasion.
 	if( DrawTimer.Ago() < DRAW_UPDATE_TIME )
-		return;
+		return true;
 
 	/* this truncates to int, but that's okay for our purposes */
 	float iTransferRate = iBytesCurrent / g_UpdateDuration.Ago();
@@ -278,20 +252,23 @@ void UpdateXferProgress( unsigned long iBytesCurrent, unsigned long iBytesTotal 
 	const CString sRate = FormatByteValue( iTransferRate ) + "/sec";
 
 	CString sMessage = ssprintf( "\n\n%s\n%.2f%% %s\n\n%s",
-		USER_PACK_WAIT_TEXT.GetValue().c_str(),
+		USER_PACK_WAIT_TEXT.c_str(),
 		fPercent,
 		sRate.c_str(),
-		USER_PACK_CANCEL_TEXT.GetValue().c_str()
+		USER_PACK_CANCEL_TEXT.c_str()
 	);
 	SCREENMAN->OverlayMessage( sMessage );
 
 
 	SCREENMAN->Draw();
 	DrawTimer.Touch();
+	return true;
 }
 
 void ScreenUserPacks::HandleScreenMessage( const ScreenMessage SM )
 {
+#if 0
+	/* Not compatible with FileCopy callback system; was this ever used? -- vyhd */
 	if ( SM == SM_CancelTransfer )
 	{
 		Dialog::OK("SM_CancelTransfer");
@@ -303,6 +280,7 @@ void ScreenUserPacks::HandleScreenMessage( const ScreenMessage SM )
 
 		LOG->Warn("Cancelled Transfer of user pack.");
 	}
+#endif
 	if ( SM == SM_LinkedMenuChange )
 	{
 		m_pCurLOM = m_pCurLOM->SwitchToNextMenu();
@@ -340,7 +318,6 @@ void ScreenUserPacks::HandleScreenMessage( const ScreenMessage SM )
 	}
 	if ( SM == SM_AnswerConfirmAddZip )
 	{
-		bool bSuccess = false, bBreakEarly = false, bSkip = false;
 		CString sError;
 
 		m_bPrompt = false;
@@ -351,9 +328,7 @@ void ScreenUserPacks::HandleScreenMessage( const ScreenMessage SM )
 		m_PlayerSongLoadThread.Wait();
 
 		MountMutex.Lock();
-#if defined(LINUX) && defined(ITG_ARCADE)
-		system( "mount -o remount,rw /itgdata" );
-#endif
+
 		MEMCARDMAN->LockCards();
 		MEMCARDMAN->MountCard(m_CurPlayer, 99999);
 		CString sSelection = m_USBZips.GetCurrentSelection();
@@ -366,9 +341,6 @@ MountMutex.Unlock(); \
 m_bStopThread = false; \
 m_PlayerSongLoadThread.Create( InitSASSongThread, this )
 ////////////////////////
-
-			bBreakEarly = false;
-			bSkip = false;
 
 			g_CurXferFile = MEM_CARD_MOUNT_POINT[m_CurPlayer] + "/" + USER_PACK_TRANSFER_PATH + sSelection;
 			if ( !UPACKMAN->IsPackTransferable( sSelection, g_CurXferFile, sError ) || !UPACKMAN->IsPackMountable( g_CurXferFile, sError ) )
@@ -395,7 +367,6 @@ m_PlayerSongLoadThread.Create( InitSASSongThread, this )
 		}
 #if defined(LINUX) && defined(ITG_ARCADE)
 		sync();
-		system( "mount -o remount,ro /itgdata" );
 #endif
 		SCREENMAN->HideOverlayMessage();
 		SCREENMAN->ZeroNextUpdate();

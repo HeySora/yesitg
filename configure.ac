@@ -1,11 +1,14 @@
+# vim: set noet:
 # only tested with autoconf 2.57
 AC_PREREQ(2.53)
-AC_INIT(src/StepMania.cpp)
+
+AC_INIT([OpenITG], [1.0])
+AC_CONFIG_SRCDIR([src/StepMania.cpp])
+
 AC_CONFIG_AUX_DIR(autoconf)
 AC_CANONICAL_TARGET
-
-AM_INIT_AUTOMAKE(OpenITG, 1.01)
-AM_CONFIG_HEADER(src/config.h)
+AM_INIT_AUTOMAKE([subdir-objects])
+AM_CONFIG_HEADER([src/config.h])
 AM_MAINTAINER_MODE
 
 # We don't want PROG_CC/CXX default settings, but don't ignore explicit settings.
@@ -37,8 +40,8 @@ case $compile in
 	test "$DEFAULT_CXXFLAGS" = "yes" && CXXFLAGS="$CXXFLAGS -O3"
 	;;
 	debug)
-	test "$DEFAULT_CFLAGS" = "yes" && CFLAGS="$CFLAGS -g"
-	test "$DEFAULT_CXXFLAGS" = "yes" && CXXFLAGS="$CXXFLAGS -g"
+	test "$DEFAULT_CFLAGS" = "yes" && CFLAGS="$CFLAGS -O0 -g3"
+	test "$DEFAULT_CXXFLAGS" = "yes" && CXXFLAGS="$CXXFLAGS -O0 -g3"
 	;;
 	fast)
 	test "$DEFAULT_CFLAGS" = "yes" && CFLAGS="$CFLAGS -O2 -fno-inline"
@@ -88,17 +91,6 @@ AC_C_BIGENDIAN(
 	AC_DEFINE(ENDIAN_LITTLE, 1, [Little endian]),
 	AC_MSG_ERROR([Can't determine endianness]) )
 
-# If we're compiling with the SSE2 build flag, add that flag to CFLAGS and CXXFLAGS.
-# (Handwritten SSE/SSE2 code isn't in the binary, but GCC's heuristics optimize enough
-# vector arithmetic in Rage that this produces a noticeable speedup on SSE2 processors.)
-
-AC_ARG_WITH(sse2, AC_HELP_STRING([--with-sse2], [Enable SSE2 optimization]), with_sse2=$withval, with_sse2=no)
-
-if test "$with_sse2" = "yes"; then
-	CFLAGS="$CFLAGS -msse2"
-	CXXFLAGS="$CXXFLAGS -msse2"
-fi
-
 AC_ARG_WITH(prof, AC_HELP_STRING([--with-prof], [Enable profiling]), with_prof=$withval, with_prof=no)
 if test "$with_prof" = "yes"; then
 	test "$DEFAULT_CFLAGS" = "yes" && CFLAGS="$CFLAGS -pg"
@@ -124,15 +116,30 @@ fi
 # SDL_LIBS="`echo $SDL_LIBS | sed 's_-L/usr/lib/\?[[ $]]__'`"
 
 have_libpng=yes
-AC_CHECK_LIB(png, png_create_read_struct, [x=y], have_libpng=no, [-lz -lm]) # x=y to stop autoconf from messing with LIBS
-AC_CHECK_HEADER(png.h, , have_libpng=no)
+PNG_LIBS=
+PNG_CFLAGS=
+AC_CHECK_LIB(png12, png_create_read_struct, have_libpng=yes, have_libpng=no, 
+             [-lz -lm])
+if test "$have_libpng" = "yes"; then
+    png_header_found=yes
+    AC_CHECK_HEADER(/usr/include/libpng12/png.h, , png_header_found=no)
+    if test "$png_header_found" = "yes"; then
+        CXXFLAGS="$CXXFLAGS -I/usr/include/libpng12"
+    else
+        AC_CHECK_HEADER(png.h, , have_libpng=no)
+    fi
+    LIBS="$LIBS -lpng12 -lz -lm"
+else
+    AC_CHECK_LIB(png, png_create_read_struct, have_libpng=yes, have_libpng=no, [-lz -lm]) # x=y to stop autoconf from messing with LIBS
+    AC_CHECK_HEADER(png.h, , have_libpng=no)
+    LIBS="$LIBS -lpng -lz -lm"
+fi
 if test "$have_libpng" = "no"; then
   echo
   echo "*** libpng is required to build StepMania; please make sure that"
   echo "*** it is installed to continue the build process."
   exit 1
 fi
-LIBS="$LIBS -lpng -lz -lm"
 
 AC_ARG_WITH(jpeg, AC_HELP_STRING([--without-jpeg], [Disable JPEG support]), with_jpeg=$withval, with_jpeg=yes)
 
@@ -174,48 +181,46 @@ SM_ZLIB
 SM_AUDIO
 SM_TLS
 SM_LIBUSB
+SM_FFMPEG
 
-#AC_SEARCH_LIBS(avcodec_init, [avcodec], have_libavcodec=yes,  have_libavcodec=no)
-#AC_SEARCH_LIBS(guess_format, [avformat], have_libavformat=yes,  have_libavformat=no)
+# for linux joystick hotplug
+have_inotify=no
+AC_CHECK_HEADER([sys/inotify.h], 
+	have_inotify=yes
+	AC_DEFINE(HAVE_INOTIFY, 1, [inotify support in kernel])
+,)
 
-#if test "$have_libavcodec" = "yes"; then
-#  AC_MSG_CHECKING([for libavcodec >= 0.4.9])
-#  AC_TRY_RUN([
-#      #include <ffmpeg/avcodec.h>
-#      int main()
-#      {
-#	      return ( LIBAVCODEC_VERSION_INT < 0x000409 )? 1:0;
-#      }
-#      ],,have_libavcodec=no,)
-#  AC_MSG_RESULT($have_libavcodec)
-#fi
+# search for system libs if not building for arcade
+if test "$itg_arcade" = "no"; then
+	AC_CHECK_LIB(resample, resample_open, [have_libresample=yes], [have_libresample=static], [-lm])
+	if test "$have_libresample" = "yes"; then
+		LIBS="$LIBS -lresample"
+	fi
+else
+	echo "Skipping libresample check due to arcade build"
+	have_libresample=static
+fi
 
-#if test "$have_libavformat" = "yes"; then
-#  AC_MSG_CHECKING([for libavformat >= 0.4.9])
-#  AC_TRY_RUN([
-#      #include <ffmpeg/avformat.h>
-#      int main()
-#      {
-#	      return ( LIBAVFORMAT_VERSION_INT < 0x000409 )? 1:0;
-#      }
-#      ],,have_libavformat=no,)
-#  AC_MSG_RESULT($have_libavformat)
-#fi
+AM_CONDITIONAL(HAVE_LIBRESAMPLE, test "$have_libresample" = "yes")
 
-#have_ffmpeg=no
-#if test "$have_libavformat" = "yes" -a "$have_libavcodec" = "yes"; then
-#	have_ffmpeg=yes
-#	AC_DEFINE(HAVE_FFMPEG, 1, [FMPEG support available])
-#fi
-#AM_CONDITIONAL(HAVE_FFMPEG, test "$have_ffmpeg" = "yes")
+# test if processor supports SSE2
+have_sse2=no
+AC_TRY_RUN([int main() { int a,d; asm ("cpuid":"=a"(a),"=d"(d):"0"(1)); return d & (1 << 26) ? 0 : 1; }], have_sse2=yes, have_sse2=no)
 
-# We statically link our own FFMPEG libs, so we always have FFMPEG regardless
-AC_DEFINE(HAVE_FFMPEG, 1, [FFMPEG support available])
-AM_CONDITIONAL(HAVE_FFMPEG, true)
+# Don't use SSE2 by default; some GCC versions misoptimise the code, which
+# causes Heisenbugs, and we don't want to inflict that pain unnecessarily.
+# Only supply it if the user specifically asks.
+
+AC_ARG_WITH(sse2, AC_HELP_STRING([--with-sse2], [Enable SSE2 optimization]), with_sse2=$withval, with_sse2=no)
+if test "$with_sse2" = "yes"; then
+	CFLAGS="$CFLAGS -msse2"
+	CXXFLAGS="$CXXFLAGS -msse2"
+fi
 
 SM_CHECK_CRASH_HANDLER
 
-AM_PATH_ALSA(0.9.0,AC_DEFINE([HAVE_ALSA],1,[Define presence of ALSA]),alsa=false)
+alsa=yes
+AM_PATH_ALSA(0.9.0,AC_DEFINE([HAVE_ALSA],1,[Define presence of ALSA]),alsa=no)
 
 AM_ICONV
 
@@ -247,7 +252,7 @@ AC_CHECK_LIB( pthread, pthread_cond_timedwait, AC_DEFINE([HAVE_PTHREAD_COND_TIME
 # Always:
 AC_DEFINE(_GNU_SOURCE, 1, [Use GNU extensions])
 
-AM_CONDITIONAL(HAVE_ALSA, test x$alsa != xfalse )
+AM_CONDITIONAL(HAVE_ALSA, test x$alsa != xno )
 AM_CONDITIONAL(HAVE_GTK, test "$enable_gtk2" != "no" )
 AM_CONDITIONAL(HAVE_OSS, test x$ac_cv_header_sys_soundcard_h = xyes )
 AM_CONDITIONAL(USE_CRASH_HANDLER, test "$use_crash_handler" = "yes" )
@@ -276,7 +281,76 @@ AM_CONDITIONAL(BUILD_TESTS, test "$enable_tests" = "yes" )
 AC_CONFIG_FILES(Makefile)
 AC_CONFIG_FILES(src/Makefile)
 
-# TODO: clean this up - kinda hacky...
-cd src/libresample && ./configure && cd ../..
+if test "$have_libresample" != "yes"; then
+	# use our own libresample in vain
+	cd src/libresample && autoconf && ./configure && cd ../..
+fi
+
+AC_CHECK_PROG([have_git], [git], yes, no)
+
+have_git_repo=no
+if test "$have_git" = "yes"; then
+	if test -d .git; then
+		have_git_repo=yes
+	else
+		echo "Warning: This is not a git checkout, can't determine version!"
+	fi
+else
+	echo "Warning: git is not installed, can't determine version!"
+fi
+
+if test "$have_git_repo" = "yes"; then
+	build_version=`git describe --abbrev=0`
+	build_rev_date=`git log -1 --pretty="format:%ad" --date="short"`
+	build_rev_tag=`git describe`
+
+	# If the rev_tag and the version are the same, this is
+	# an official release; otherwise, it's a dev build.
+	if test "$build_version" != "$build_rev_tag"; then
+		build_version="$build_version DEV"
+	fi
+
+	# HACK: the arcade chroot's git version is too old to understand our
+	# desired YYYY-MM-DD format. If we don't get a date in that format,
+	# fall back to today's date.
+
+	# HACK x2 COMBO!!: 'expr', in bash 2.05, doesn't seem to parse
+	# {n} for matching n repeats, hence the brain-dead regex.
+
+	if ! [ expr "$build_rev_date" : '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$' > /dev/null ]; then
+		build_rev_date=`date +%Y-%m-%d`
+	fi
+else
+	build_version="unknown version"
+	build_rev_date="unknown date"
+	build_rev_tag="unknown revision"
+fi
+
+AC_DEFINE_UNQUOTED(BUILD_VERSION, "$build_version", [Version tag])
+AC_DEFINE_UNQUOTED(BUILD_DATE, "$build_rev_date", [Date of source revision])
+AC_DEFINE_UNQUOTED(BUILD_REVISION_TAG, "$build_rev_tag", [ID of source revision])
+
+AC_SUBST(CFLAGS)
+AC_SUBST(CXXFLAGS)
+AC_SUBST(LDFLAGS)
 
 AC_OUTPUT
+
+echo
+echo
+
+echo "OpenITG $build_version (revision $build_rev_tag, $build_rev_date)"
+
+echo
+
+echo "Arcade build		$itg_arcade"
+echo "SSE2 optimizations	$with_sse2 (supported: $have_sse2)"
+echo "SDL			$enable_sdl"
+echo "FFMPEG			$have_ffmpeg ($ffmpeg_option)"
+echo "libresample		$have_libresample"
+echo "GTK2			$enable_gtk2"
+echo "ALSA			$alsa"
+echo "OSS			$ac_cv_header_sys_soundcard_h (forced: $force_oss)"
+echo "inotify hotplug		$have_inotify"
+
+echo

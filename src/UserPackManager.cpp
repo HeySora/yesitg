@@ -1,8 +1,6 @@
 #include "global.h"
 #include "UserPackManager.h"
-#include "RageFileManager.h"
 #include "RageUtil.h"
-#include "Foreach.h"
 #include "RageLog.h"
 #include "RageFileDriverZip.h"
 #include "arch/ArchHooks/ArchHooks.h"
@@ -43,15 +41,8 @@ bool UserPackManager::Remove( const CString &sPack )
 	FILEMAN->Unmount( "zip", sPack, "/Songs" );
 	FILEMAN->Unmount( "zip", sPack, "/" );
 
-#if defined(LINUX) && defined(ITG_ARCADE)
-	system( "mount -o remount,rw /itgdata" );
-#endif
-
 	bool bDeleted = FILEMAN->Remove( sPack );
 
-#if defined(LINUX) && defined(ITG_ARCADE)
-	system( "mount -o remount,ro /itgdata" );
-#endif
 	/* refresh directory data after deletion */
 	FILEMAN->FlushDirCache( USER_PACK_SAVE_PATH );
 
@@ -143,9 +134,9 @@ bool UserPackManager::IsPackTransferable( const CString &sPack, const CString &s
 	return true;
 }
 
-bool UserPackManager::TransferPack( const CString &sPack, const CString &sDestPack, void(*OnUpdate)(unsigned long, unsigned long), CString &sError )
+bool UserPackManager::TransferPack( const CString &sPack, const CString &sDestPack, FileCopyFn CopyFn, CString &sError )
 {
-	bool bSuccess = FileCopy( sPack, USER_PACK_SAVE_PATH + "/" + sDestPack, sError, OnUpdate );
+	bool bSuccess = FileCopy( sPack, USER_PACK_SAVE_PATH + "/" + sDestPack, sError, CopyFn );
 	if (!bSuccess)
 	{
 		FILEMAN->FlushDirCache( USER_PACK_SAVE_PATH );
@@ -168,7 +159,6 @@ CString UserPackManager::GetPackMountPoint( const CString &sPack )
 	CHECKPOINT_M( sPack );
 	// it should already be a valid zip by now...
 	ASSERT( pZip->Load( sPack ) );
-	UserPackMountType upmt = UPACK_MOUNT_SONGS;
 
 	CStringArray asRootEntries;
 	pZip->GetDirListing( "/", asRootEntries, true, false );

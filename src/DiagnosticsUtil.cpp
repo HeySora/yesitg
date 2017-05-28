@@ -1,28 +1,19 @@
 #include "global.h"
 #include "RageLog.h"
-#include "RageUtil.h"
-#include "RageTimer.h"
 #include "ProfileManager.h"
 #include "SongManager.h"
-#include "LuaManager.h"
 #include "DiagnosticsUtil.h"
 #include "arch/ArchHooks/ArchHooks.h"
 #include "UserPackManager.h"	// for USER_PACK_SAVE_PATH
 
 #include "XmlFile.h"
 #include "ProductInfo.h"
-#include "io/ITGIO.h"
 #include "io/USBDevice.h"
 
 #include "iButton.h"
 
 #define PATCH_XML_PATH "Data/patch/patch.xml"
 #define STATS_XML_PATH "Data/MachineProfile/Stats.xml"
-
-// these should be defined in verstub.cpp across all platforms
-extern const bool VersionSVN;
-extern const char *const VersionDate;
-extern unsigned long VersionNumber;
 
 /* /stats/ is mounted to Data for arcade builds, so this should be okay. */
 int DiagnosticsUtil::GetNumCrashLogs()
@@ -92,101 +83,42 @@ int DiagnosticsUtil::GetRevision()
 
 int DiagnosticsUtil::GetNumMachineScores()
 {
-	// Create the XML Handler and clear it, for practice
-	XNode *xml = new XNode;
-	xml->Clear();
-	
-	// Check for the file existing
-	if( !IsAFile(STATS_XML_PATH) )
-	{
-		LOG->Warn( "There is no Stats.xml file!" );
-		SAFE_DELETE( xml ); 
-		return 0;
-	}
-	
-	// Make sure you can read it
-	if( !xml->LoadFromFile(STATS_XML_PATH) )
-	{
-		LOG->Trace( "Stats.xml unloadable!" );
-		SAFE_DELETE( xml ); 
-		return 0;
-	}
-	
-	const XNode *pData = xml->GetChild( "SongScores" );
-	
-	if( pData == NULL )
-	{
-		LOG->Warn( "Error loading scores: <SongScores> node missing" );
-		SAFE_DELETE( xml ); 
-		return 0;
-	}
-	
-	unsigned int iScoreCount = 0;
-	
-	// Named here, for LoadFromFile() renames it to "Stats"
-	xml->m_sName = "SongScores";
-	
-	// For each pData Child, or the Child in SongScores...
-	FOREACH_CONST_Child( pData , p )
-		iScoreCount++;
+	const Profile *p = PROFILEMAN->GetMachineProfile();
+	int ret = 0;
 
-	SAFE_DELETE( xml ); 
+	/* XXX: this duplicates code in Profile::SaveSongScoresCreateNode.
+	 * Is there any better way to count the number of scores? */
+	FOREACHM_CONST( SongID, Profile::HighScoresForASong, p->m_SongHighScores, i )
+	{
+		const SongID &id = i->first;
+		const Profile::HighScoresForASong &hsSong = i->second;
 
-	return iScoreCount;
+		/* ignore songs that have never been played */
+		if( p->GetSongNumTimesPlayed(id) == 0 )
+			continue;
+
+		FOREACHM_CONST( StepsID, Profile::HighScoresForASteps, hsSong.m_StepsHighScores, j )
+		{
+			const Profile::HighScoresForASteps &hsSteps = j->second;
+			const HighScoreList &hsl = hsSteps.hsl;
+
+			/* add all the scores in this list to our count.
+			 * (if there are no entries, no harm done.) */
+			ret += hsl.vHighScores.size();
+		}
+	}
+
+	return ret;
 }
 
 CString DiagnosticsUtil::GetProductName()
 {
-	if( VersionSVN )
-		return CString(PRODUCT_NAME_VER) + " " + ssprintf( "r%lu", VersionNumber);
-
-	return CString(PRODUCT_NAME_VER);
+	return ProductInfo::GetFullVersion();
 }
 
 CString DiagnosticsUtil::GetProductVer()
 {
-	return CString(PRODUCT_VER);
-}
-
-namespace
-{
-	/* this allows us to use the serial numbers on home builds for
-	 * debugging information. VersionDate and VersionNumber are extern'd
-	 * from verstub. */
-	CString GenerateDebugSerial()
-	{
-		char system, type;
-
-	// set the compilation OS
-	#if defined(WIN32)
-		system = 'W'; /* Windows */
-	#elif defined(LINUX)
-		if( VersionSVN )
-			system = 'S'; /*nix, with SVN */
-		else
-			system = 'L'; /*nix, no SVN */
-	#elif defined(DARWIN)
-		system = 'M'; /* Mac OS */
-	#else
-		system = 'U'; /* unknown */
-	#endif
-
-	// set the compilation arcade type
-	#ifdef ITG_ARCADE
-		type = 'A';
-	#else
-		type = 'P';
-	#endif
-
-		// if SVN, display revision: "OITG-W-20090409-600-P"
-		// if no SVN, display build in hex: "OITG-W-20090409-08A-P"
-		if( VersionSVN )
-			return ssprintf( "OITG-%c-%s-%03lu-%c", system, 
-				VersionDate, VersionNumber, type );
-		else
-			return ssprintf( "OITG-%c-%s-%03lX-%c", system, 
-				VersionDate, VersionNumber, type );
-	}
+	return ProductInfo::GetBuildRevision();
 }
 
 CString DiagnosticsUtil::GetSerialNumber()
@@ -194,11 +126,69 @@ CString DiagnosticsUtil::GetSerialNumber()
 	/* Attempt to get a serial number from the dongle */
 	CString sSerial = iButton::GetSerialNumber();
 
-	/* If the dongle failed to read, generate a debug serial. */
-	if( sSerial.empty() )
-		sSerial = GenerateDebugSerial();
-
 	return sSerial;
+}
+
+enum SerialType
+{
+	/* disassembly: 0, 1, 2, 4 respectively. there's an unknown 3. */
+	SERIAL_ITG1,
+	SERIAL_ITG2_CAB,
+	SERIAL_ITG2_KIT,
+	SERIAL_INVALID
+};
+
+/* XXX: we'll replace "VAR_A"/"VAR_B" when we know what their purposes are.
+ * VAR_A might be arbitrary; I think VAR_B is a check digit for VAR_A. */
+SerialType ParseSerialNumber( const char *serial, int *VAR_A, int *VAR_B )
+{
+	if( sscanf(serial, "ITG-1.0-%*d-%d", VAR_A ) == 1 )
+	{
+		*VAR_B = -1;	// probably unnecessary
+		return SERIAL_ITG1;
+	}
+
+	char type;
+
+	if( sscanf(serial, "ITG-%c-%*d-%d-%x", &type, VAR_A, VAR_B) != 3 )
+	{
+		*VAR_A = -1; *VAR_B = -1;	// probably unnecessary
+		return SERIAL_INVALID;
+	}
+
+	switch( type )
+	{
+	case 'C': return SERIAL_ITG2_CAB;
+	case 'K': return SERIAL_ITG2_KIT;
+	default: return SERIAL_INVALID;
+	}
+}
+
+CString DiagnosticsUtil::GetGuidFromSerial( const CString &sSerial )
+{
+	CString guid;
+	int VAR_A, VAR_B;	/* v10, v11 */
+
+	SerialType type = ParseSerialNumber( sSerial, &VAR_A, &VAR_B );
+
+	switch( type )
+	{
+	case SERIAL_ITG1:	guid = "01%06i";	break;
+	case SERIAL_ITG2_KIT:	guid = "02%x%05i";	break;
+	case SERIAL_ITG2_CAB:	guid = "03%x%05i";	break;
+	case SERIAL_INVALID:
+		guid = "ff%06x";
+		VAR_A = GetHashForString( sSerial );
+		break;
+	default:
+		ASSERT(0);
+	}
+
+	/* these include (what I assume is) a check digit */
+	if( type == SERIAL_ITG2_KIT || type == SERIAL_ITG2_CAB )
+		return ssprintf( guid, VAR_B, VAR_A );
+
+	return ssprintf( guid, VAR_A );
 }
 
 bool DiagnosticsUtil::HubIsConnected()
@@ -224,15 +214,6 @@ void DiagnosticsUtil::SetInputType( const CString &sType )
 {
 	g_sInputType = sType;
 }
-
-// set OPENITG LUA variables from here
-void SetProgramGlobals( lua_State* L )
-{
-	LUA->SetGlobal( "OPENITG", true );
-	LUA->SetGlobal( "OPENITG_VERSION", PRODUCT_TOKEN );
-}
-
-REGISTER_WITH_LUA_FUNCTION( SetProgramGlobals );
 
 // LUA bindings for diagnostics functions
 

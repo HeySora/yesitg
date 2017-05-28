@@ -1,17 +1,8 @@
 #include "global.h"
-#include "RageFile.h"
 
 #include "RageDisplay.h"
 #include "RageDisplay_Null.h"
-#include "RageUtil.h"
 #include "RageLog.h"
-#include "RageTimer.h"
-#include "RageTexture.h"
-#include "RageTextureManager.h"
-#include "RageMath.h"
-#include "RageTypes.h"
-#include "StepMania.h"
-#include "RageUtil.h"
 #include "RageSurface.h"
 
 static RageDisplay::PixelFormatDesc PIXEL_FORMAT_DESC[RageDisplay::NUM_PIX_FORMATS] = {
@@ -91,7 +82,7 @@ RageSurface* RageDisplay_Null::CreateScreenshot()
 	return image;
 }
 
-const RageDisplay::PixelFormatDesc *RageDisplay_Null::GetPixelFormatDesc(PixelFormat pf) const
+const RageDisplay::PixelFormatDesc *RageDisplay_Null::GetPixelFormatDesc(RagePixelFormat pf) const
 {
 	ASSERT( pf < NUM_PIX_FORMATS );
 	return &PIXEL_FORMAT_DESC[pf];

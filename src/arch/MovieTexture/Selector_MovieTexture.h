@@ -8,7 +8,7 @@
 #include "MovieTexture_DShow.h"
 #endif
 
-#ifdef HAVE_FFMPEG
+#if defined(HAVE_FFMPEG)
 #include "MovieTexture_FFMpeg.h"
 #endif
 

@@ -1,40 +1,22 @@
 #include "global.h"
-#include "Player.h"
-#include "GameConstantsAndTypes.h"
-#include "RageUtil.h"
-#include "RageTimer.h"
-#include "PrefsManager.h"
-#include "GameConstantsAndTypes.h"
-#include "GameManager.h"
 #include "InputMapper.h"
 #include "SongManager.h"
 #include "GameState.h"
 #include "ScoreKeeperMAX2.h"
 #include "RageLog.h"
-#include "RageMath.h"
 #include "RageDisplay.h"
-#include "ThemeManager.h"
-#include "ScoreDisplay.h"
-#include "LifeMeter.h"
 #include "CombinedLifeMeter.h"
 #include "PlayerAI.h"
 #include "NoteField.h"
 #include "NoteFieldPositioning.h"
 #include "NoteDataUtil.h"
 #include "ScreenGameplay.h" /* for SM_ComboStopped */
-#include "ScreenManager.h"
-#include "StageStats.h"
 #include "ArrowEffects.h"
 #include "Game.h"
-#include "NetworkSyncManager.h"	//used for sending timing offset
-#include "DancingCharacters.h"
 #include "ScreenDimensions.h"
-#include "RageSoundManager.h"
-#include "ThemeMetric.h"
 #include "PlayerState.h"
 #include "GameSoundManager.h"
 #include "Style.h"
-#include "MessageManager.h"
 #include "ProfileManager.h"
 #include "StatsManager.h"
 
@@ -49,7 +31,7 @@ enum HoldWindow { HW_OK, HW_Roll };
 enum TapWindow { TW_Marvelous, TW_Perfect, TW_Great, TW_Good, TW_Boo, TW_Mine, TW_Attack };
 
 
-float AdjustedWindowTap( TapWindow tw, float fJudgeScale, bool bIsPlayingBeginner )
+float AdjustedWindowTap( TapWindow tw, float fTimingScale, bool bIsPlayingBeginner )
 {
 	float fSecs = 0;
 	switch( tw )
@@ -68,14 +50,14 @@ float AdjustedWindowTap( TapWindow tw, float fJudgeScale, bool bIsPlayingBeginne
 	fSecs += PREFSMAN->m_fJudgeWindowAdd;
 
 	// apply this last, so it overlays on the above scaling
-	fSecs *= fJudgeScale;
+	fSecs *= fTimingScale;
 
 	if( bIsPlayingBeginner && PREFSMAN->m_bMercifulBeginner && tw==TW_Boo )
 		fSecs += 0.5f;
 	return fSecs;
 }
 
-float AdjustedWindowHold( HoldWindow hw, float fJudgeScale, bool bIsPlayingBeginner )
+float AdjustedWindowHold( HoldWindow hw, bool bIsPlayingBeginner )
 {
 	float fSecs = 0;
 	switch( hw )
@@ -88,15 +70,11 @@ float AdjustedWindowHold( HoldWindow hw, float fJudgeScale, bool bIsPlayingBegin
 	fSecs *= PREFSMAN->m_fJudgeWindowScale;
 	fSecs += PREFSMAN->m_fJudgeWindowAdd;
 
-	// don't scale roll timing
-	if( hw != HW_Roll )
-		fSecs *= fJudgeScale;
-
 	return fSecs;
 }
 
 #define ADJUSTED_WINDOW_TAP( tw )	AdjustedWindowTap( tw, m_pPlayerState->m_CurrentPlayerOptions.m_fTimingScale, IsPlayingBeginner() )
-#define ADJUSTED_WINDOW_HOLD( hw )	AdjustedWindowHold( hw, m_pPlayerState->m_CurrentPlayerOptions.m_fTimingScale, IsPlayingBeginner() )
+#define ADJUSTED_WINDOW_HOLD( hw )	AdjustedWindowHold( hw, IsPlayingBeginner() )
 
 Player::Player()
 {
