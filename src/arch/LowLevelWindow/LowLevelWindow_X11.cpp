@@ -155,7 +155,8 @@ CString LowLevelWindow_X11::TryVideoMode( RageDisplay::VideoModeParams p, bool &
 		XChangeProperty( g_X11Display, X11Helper::Wins[0], XA_WM_NAME, XA_STRING, 8, PropModeReplace,
 				reinterpret_cast<unsigned char*>(szWindowTitle), strlen(szWindowTitle) );
 
-		GLXContext ctxt = glXCreateContext(X11Helper::Dpy, xvi, NULL, True);
+		GLXContext ctxt = glXCreateContext(X11Helper::Dpy, xvi, X11Helper::Ctxs.size() > 0 ? X11Helper::Ctxs[0] : NULL, True);
+		//GLXContext ctxt = glXCreateContext(X11Helper::Dpy, xvi, NULL, True);
 
 		glXMakeCurrent( X11Helper::Dpy, X11Helper::Wins[0], ctxt );
 
@@ -327,7 +328,8 @@ Window LowLevelWindow_X11::CreateAdditionalWindow()
 	XChangeProperty( g_X11Display, window, XA_WM_NAME, XA_STRING, 8, PropModeReplace,
 			reinterpret_cast<unsigned char*>(szWindowTitle), strlen(szWindowTitle) );
 
-	GLXContext ctxt = glXCreateContext(X11Helper::Dpy, xvi, NULL, True);
+	GLXContext ctxt = glXCreateContext(X11Helper::Dpy, xvi, X11Helper::Ctxs.size() > 0 ? X11Helper::Ctxs[0] : NULL, True);
+	//GLXContext ctxt = glXCreateContext(X11Helper::Dpy, xvi, NULL, True);
 
 	glXMakeCurrent( X11Helper::Dpy, window, ctxt );
 
