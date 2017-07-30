@@ -45,6 +45,7 @@
 #include "RageMath.h"
 
 #include "arch/LowLevelWindow/LowLevelWindow.h"
+#include "archutils/Unix/X11Helper.h"
 
 #if defined(_MSC_VER)
 #pragma comment(lib, "opengl32.lib")
@@ -718,18 +719,32 @@ int RageDisplay_OGL::GetMaxTextureSize() const
 
 bool RageDisplay_OGL::BeginFrame()
 {
-	glClearColor( 0,0,0,1 );
-	SetZWrite( true );
-    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+	for (unsigned int i = 0; i < X11Helper::GetWins().size(); i++)
+	{
+
+		X11Helper::SetCurrentContext(i);
+
+		glClearColor( 0,0,0,1 );
+		SetZWrite( true );
+	    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
+    }
 	return true;
 }
 
 void RageDisplay_OGL::EndFrame()
 {
-	// glFlush(), not glFinish(); NVIDIA_GLX's glFinish()'s behavior is
-	// nowhere near performance-friendly and uses unholy amounts of CPU for
-	// Gog-knows-what.
-	glFlush();
+	for (unsigned int i = 0; i < X11Helper::GetWins().size(); i++)
+	{
+
+		X11Helper::SetCurrentContext(i);
+
+		// glFlush(), not glFinish(); NVIDIA_GLX's glFinish()'s behavior is
+		// nowhere near performance-friendly and uses unholy amounts of CPU for
+		// Gog-knows-what.
+		glFlush();
+
+	}
 
 	wind->SwapBuffers();
 	ProcessStatsOnFlip();
