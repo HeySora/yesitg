@@ -26,6 +26,7 @@
 #include "RageTextureManager.h"
 #include "Screen.h"
 #include "ActorUtil.h"
+#include "ScreenDimensions.h"
 
 ScreenManager*	SCREENMAN = NULL;	// global and accessable from anywhere in our program
 
@@ -219,8 +220,9 @@ void ScreenManager::Draw()
 
 	for (unsigned int i = 0; i < H::X11Helper::GetWins().size(); i++)
 	{
-		H::X11Helper::SetViewport(640*i, 0);
+
 		H::X11Helper::SetCurrentContext(i);
+		H::X11Helper::SetViewport(SCREEN_WIDTH/2*i, 0);
 
 		m_pSharedBGA->Draw();
 
@@ -236,6 +238,7 @@ void ScreenManager::Draw()
 
 		for( unsigned i=0; i<m_OverlayScreens.size(); i++ )
 			m_OverlayScreens[i]->Draw();
+
 	}
 
 	DISPLAY->EndFrame();
