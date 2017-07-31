@@ -432,6 +432,8 @@ Window LowLevelWindow_X11::CreateAdditionalWindow()
 	CurrentParams = p;
 	//CurrentParams.rate = rate;
 
+	DISPLAY->SetDefaultRenderStates();
+
 	return window;
 	
 }

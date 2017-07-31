@@ -231,6 +231,9 @@ public:
 	virtual CString GetTextureDiagnostics( unsigned id ) const { return ""; }
 	virtual RageSurface* CreateScreenshot() = 0;	// allocates a surface.  Caller must delete it.
 
+	// Stuff in RageDisplay.cpp
+	void SetDefaultRenderStates();
+
 protected:
 	virtual void DrawQuadsInternal( const RageSpriteVertex v[], int iNumVerts ) = 0;
 	virtual void DrawQuadStripInternal( const RageSpriteVertex v[], int iNumVerts ) = 0;
@@ -247,10 +250,6 @@ protected:
 	virtual CString TryVideoMode( VideoModeParams params, bool &bNewDeviceOut ) = 0;
 
 	void DrawPolyLine(const RageSpriteVertex &p1, const RageSpriteVertex &p2, float LineWidth );
-
-
-	// Stuff in RageDisplay.cpp
-	void SetDefaultRenderStates();
 
 public:
 	/* Statistics */
