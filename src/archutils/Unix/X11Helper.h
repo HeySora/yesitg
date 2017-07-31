@@ -35,6 +35,9 @@ namespace X11Helper
 	// Set current GL Viewport
 	void SetViewport(int shift_left, int shift_down);
 
+	// Get current GLX Context index. ~Sora
+	unsigned int GetCurrentContext();
+
 	// Set current GLX Context
 	bool SetCurrentContext(unsigned int i);
 

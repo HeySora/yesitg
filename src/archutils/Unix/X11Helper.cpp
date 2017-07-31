@@ -17,6 +17,9 @@ static vector<long> g_aiMasks;
 // Number of subsystems using the X connection:
 static int g_iRefCount = 0;
 
+// Current applied context ~Sora
+static unsigned int g_iCurrentContext = 0;
+
 // Do we have a window?
 static bool g_bHaveWin = false;
 
@@ -105,10 +108,22 @@ void X11Helper::SetViewport(int shift_left, int shift_down)
 	glViewport(shift_left, -shift_down, DISPLAY->GetVideoModeParams().width, DISPLAY->GetVideoModeParams().height);
 }
 
-bool X11Helper::SetCurrentContext(unsigned int i)
+// Gets the current applied context ~Sora
+unsigned int X11Helper::GetCurrentContext()
+{
+	return g_iCurrentContext;
+}
+
+bool X11Helper::SetCurrentContext( unsigned int i )
 {
 	ASSERT( Wins.size() > i && Ctxs.size() > i );
-	return glXMakeCurrent( Dpy, Wins[i], Ctxs[i] );
+
+	if ( glXMakeCurrent( Dpy, Wins[i], Ctxs[i] ) )
+	{
+		g_iCurrentContext = i;
+		return true;
+	}
+	return false;
 }
 
 void X11Helper::DestroyWindow( unsigned int i )
