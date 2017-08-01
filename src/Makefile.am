@@ -420,7 +420,8 @@ StatsManager.cpp StatsManager.h \
 ThemeManager.cpp ThemeManager.h \
 UnlockManager.cpp UnlockManager.h \
 UserPackManager.cpp UserPackManager.h \
-ProductInfo.cpp ProductInfo.h
+ProductInfo.cpp ProductInfo.h \
+WindowManager.cpp WindowManager.h
 
 if !WITHOUT_NETWORKING
 # Compile NetworkSyncManager even if networking is disabled; it'll stub itself.

@@ -58,6 +58,7 @@
 #include "NetworkSyncManager.h"
 #include "StatsManager.h"
 #include "UserPackManager.h"
+#include "WindowManager.h"
 
 // XXX: for I/O error reports
 #if !defined(XBOX)
@@ -231,6 +232,7 @@ void ShutdownGame()
 	if( SOUNDMAN )
 		SOUNDMAN->Shutdown();
 
+	SAFE_DELETE( WINDOWMAN );
 	SAFE_DELETE( SCREENMAN );
 	SAFE_DELETE( STATSMAN );
 	SAFE_DELETE( MESSAGEMAN );
@@ -1192,6 +1194,9 @@ int main(int argc, char* argv[])
 	// These things depend on the TextureManager, so do them after!
 	FONT		= new FontManager;
 	SCREENMAN	= new ScreenManager;
+
+	// Additional singletons
+	WINDOWMAN   = new WindowManager;
 
 	// UGLY: Now that all global singletons are constructed so that they, let them
 	// all register with Lua.

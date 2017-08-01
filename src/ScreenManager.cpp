@@ -222,7 +222,8 @@ void ScreenManager::Draw()
 	{
 
 		H::X11Helper::SetCurrentContext(i);
-		//H::X11Helper::SetViewport(SCREEN_WIDTH/2*i, 0);
+		H::X11Helper::SetViewport(SCREEN_WIDTH/2*i, 0);
+		
 		m_pSharedBGA->Draw();
 
 		if( !m_ScreenStack.empty() && !m_ScreenStack.back()->IsTransparent() )	// top screen isn't transparent
