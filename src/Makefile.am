@@ -230,6 +230,8 @@ Lights = arch/Lights/LightsDriver.cpp arch/Lights/LightsDriver.h \
 
 MemoryCard = arch/MemoryCard/MemoryCardDriver.cpp arch/MemoryCard/MemoryCardDriver.h
 LowLevelWindow = arch/LowLevelWindow/LowLevelWindow.cpp arch/LowLevelWindow/LowLevelWindow.h
+WindowManager = arch/WindowManager/WindowManager.cpp arch/WindowManager/WindowManager.h \
+arch/WindowManager/WindowManager_Null.cpp arch/WindowManager/WindowManager_Null.h
 
 ArchUtils =
 
@@ -283,9 +285,10 @@ endif
 if LINUX
 MemoryCard += arch/MemoryCard/MemoryCardDriverThreaded_Linux.cpp arch/MemoryCard/MemoryCardDriverThreaded_Linux.h
 InputHandler +=	arch/InputHandler/InputHandler_Linux_Joystick.h arch/InputHandler/InputHandler_Linux_Joystick.cpp
+WindowManager += arch/WindowManager/WindowManager_OGL_X11.cpp arch/WindowManager/WindowManager_OGL_X11.h
 endif
 
-Arch = $(LoadingWindow) $(Sound) $(ArchHooks) $(InputHandler) $(MovieTexture) \
+Arch = $(WindowManager) $(LoadingWindow) $(Sound) $(ArchHooks) $(InputHandler) $(MovieTexture) \
 	   $(Lights) $(MemoryCard) $(LowLevelWindow) $(ArchUtils) $(Dialog) $(Threads) $(USBDriver) \
 	   arch/arch_default.h arch/arch_platform.h arch/RageDriver.cpp arch/RageDriver.h \
 	   arch/ACIO/ACIO.h arch/ACIO/ACIO.cpp arch/COM/serial.h arch/COM/serial.cc arch/COM/v8stdint.h
@@ -420,8 +423,7 @@ StatsManager.cpp StatsManager.h \
 ThemeManager.cpp ThemeManager.h \
 UnlockManager.cpp UnlockManager.h \
 UserPackManager.cpp UserPackManager.h \
-ProductInfo.cpp ProductInfo.h \
-WindowManager.cpp WindowManager.h
+ProductInfo.cpp ProductInfo.h
 
 if !WITHOUT_NETWORKING
 # Compile NetworkSyncManager even if networking is disabled; it'll stub itself.

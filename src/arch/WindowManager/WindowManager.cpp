@@ -1,5 +1,6 @@
 #include "global.h"
 #include "RageLog.h"
+
 #include "WindowManager.h"
 
 WindowManager* WINDOWMAN = NULL;
@@ -23,14 +24,15 @@ class LunaWindowManager : public Luna<T>
 public:
 	LunaWindowManager() { LUA->Register( Register ); }
 
-	static int test( T* p, lua_State *L )
+	static int GetUsedAPI( T* p, lua_State *L )
 	{
-		return 0;
+		lua_pushstring( L, p->GetUsedAPI() );
+		return 1;
 	}
 
 	static void Register(lua_State *L)
 	{
-		ADD_METHOD( test )
+		ADD_METHOD( GetUsedAPI )
 		Luna<T>::Register( L );
 
 		if( WINDOWMAN )

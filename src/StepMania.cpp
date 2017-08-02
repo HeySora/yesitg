@@ -58,7 +58,7 @@
 #include "NetworkSyncManager.h"
 #include "StatsManager.h"
 #include "UserPackManager.h"
-#include "WindowManager.h"
+#include "arch/WindowManager/WindowManager.h"
 
 // XXX: for I/O error reports
 #if !defined(XBOX)
@@ -412,6 +412,20 @@ static void CheckSettings()
 #include "RageDisplay_Null.h"
 
 
+#if defined(WIN32) || defined(_XBOX)
+	#include "arch/WindowManager/WindowManager_D3D_Win32.h"
+	#if defined(SUPPORT_OPENGL)
+		#include "arch/WindowManager/WindowManager_OGL_Win32.h"
+	#endif
+#elif defined(MACOSX) && defined(SUPPORT_OPENGL)
+	#include "arch/WindowManager/WindowManager_OGL_MacOSX.h"
+#elif defined(UNIX) && defined(SUPPORT_OPENGL)
+	#include "arch/WindowManager/WindowManager_OGL_X11.h"
+#endif
+
+#include "arch/WindowManager/WindowManager_Null.h"
+
+
 
 struct VideoCardDefaults
 {
@@ -674,6 +688,36 @@ static void CheckVideoDefaultSettings()
 	}
 
 	LOG->Info( "Video renderers: '%s'", PREFSMAN->m_sVideoRenderers.Get().c_str() );
+}
+
+WindowManager *CreateWindowManager()
+{
+	// XXX: Should find another way to get current applied Video Renderer. ~Sora
+#if defined(SUPPORT_OPENGL)
+	if ( dynamic_cast<const RageDisplay_OGL*>(DISPLAY) != NULL )
+	{
+#if defined(WIN32) || defined(_XBOX)
+		return new WindowManager_OGL_Win32;
+#elif defined(MACOSX)
+		return new WindowManager_OGL_MacOSX;
+#elif defined(UNIX)
+		return new WindowManager_OGL_X11;
+#else
+		#error On which platform are you on?
+#endif
+	}
+#endif
+#if defined(SUPPORT_D3D)
+	if ( dynamic_cast<const RageDisplay_D3D*>(DISPLAY) != NULL )
+	{
+		return new WindowManager_D3D_Win32;
+	}
+#endif
+	if ( dynamic_cast<const RageDisplay_Null*>(DISPLAY) != NULL )
+	{
+		return new WindowManager_Null;
+	}
+	RageException::Throw("Which Display Manager is used?");
 }
 
 RageDisplay *CreateDisplay()
@@ -1196,7 +1240,7 @@ int main(int argc, char* argv[])
 	SCREENMAN	= new ScreenManager;
 
 	// Additional singletons
-	WINDOWMAN   = new WindowManager;
+	WINDOWMAN = CreateWindowManager();
 
 	// UGLY: Now that all global singletons are constructed so that they, let them
 	// all register with Lua.

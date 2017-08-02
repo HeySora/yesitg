@@ -9,14 +9,14 @@ class WindowManager
 {
 public:
 	WindowManager();
-	~WindowManager();
+	virtual ~WindowManager() = 0;
 
-	//
+	virtual CString GetUsedAPI() = 0;
 
 	// Lua
 	void PushSelf( lua_State *L );
 };
 
-extern WindowManager*			WINDOWMAN;
+extern WindowManager* WINDOWMAN;
 
 #endif
